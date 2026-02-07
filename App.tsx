@@ -420,6 +420,48 @@ const App: React.FC = () => {
   };
 
 
+  const parseVoiceAmount = (amount: unknown, rawProductText: string) => {
+    if (typeof amount === 'number' && Number.isFinite(amount)) return Math.abs(amount);
+    if (typeof amount === 'string') {
+      const parsed = Number(amount.replace(',', '.').trim());
+      if (Number.isFinite(parsed)) return Math.abs(parsed);
+    }
+
+    const fromText = rawProductText.match(/(\d+[.,]?\d*)/);
+    if (!fromText) return NaN;
+    const parsed = Number(fromText[1].replace(',', '.'));
+    return Number.isFinite(parsed) ? Math.abs(parsed) : NaN;
+  };
+
+  const cleanVoiceProductName = (rawName: string) =>
+    normalizeText(rawName)
+      .replace(/\b\d+[.,]?\d*\b/g, ' ')
+      .replace(/\b(de|do|da|dos|das|um|uma|quilo|quilos|kg|grama|gramas|g|litro|litros|ml|unidade|unidades)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const normalizeVoiceAction = (action: unknown, rawName: string): 'add' | 'consume' => {
+    const actionText = normalizeText(String(action || ''));
+    const nameText = normalizeText(rawName);
+
+    if (['consume', 'consumir', 'consumi', 'retirar', 'retirei', 'usei', 'gastei'].some((k) => actionText.includes(k) || nameText.includes(k))) {
+      return 'consume';
+    }
+
+    return 'add';
+  };
+
+  const applyVoiceStockUpdate = async (productName: string, amount: unknown, action?: unknown) => {
+    if (!currentUser || !IS_CONFIGURED || !productName) {
+      return { ok: false, reason: 'invalid_input' };
+    }
+
+    const resolvedAmount = parseVoiceAmount(amount, productName);
+    if (!Number.isFinite(resolvedAmount) || resolvedAmount <= 0) {
+      return { ok: false, reason: 'invalid_amount' };
+    }
+
+    const normalizedSpokenName = cleanVoiceProductName(productName);
   const applyVoiceStockUpdate = async (productName: string, amount: number, action?: 'add' | 'consume') => {
     if (!currentUser || !IS_CONFIGURED || !productName || !Number.isFinite(amount) || amount <= 0) {
       return { ok: false, reason: 'invalid_input' };
@@ -440,6 +482,10 @@ const App: React.FC = () => {
       return { ok: false, reason: 'not_found' };
     }
 
+    const resolvedAction = normalizeVoiceAction(action, productName);
+    const signedDelta = resolvedAction === 'consume' ? -Math.abs(resolvedAmount) : Math.abs(resolvedAmount);
+    const currentQty = Number(matchedItem.currentQuantity) || 0;
+    const newQty = Math.max(0, currentQty + signedDelta);
     const signedDelta = action === 'consume' ? -Math.abs(amount) : Math.abs(amount);
     const newQty = Math.max(0, matchedItem.currentQuantity + signedDelta);
 
@@ -459,6 +505,7 @@ const App: React.FC = () => {
     }
 
     const actionText = signedDelta < 0 ? 'consumed' : 'added';
+    setVoiceLog(`${matchedItem.name}: ${Math.abs(resolvedAmount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
     setVoiceLog(`${matchedItem.name}: ${Math.abs(amount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
     return { ok: true };
   };
@@ -503,7 +550,7 @@ const App: React.FC = () => {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
                   const { productName, amount, action } = fc.args as any;
-                  const result = await applyVoiceStockUpdate(productName, Number(amount), action);
+                  const result = await applyVoiceStockUpdate(productName, amount, action);
                   sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: result.ok ? "ok" : "error", reason: result.reason } } }));
                 }
               }
