@@ -66,9 +66,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT UNIQUE NOT NULL,
   name TEXT,
   pantry_id TEXT NOT NULL,
-  password TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.profiles DROP COLUMN IF EXISTS password;
 
 CREATE TABLE IF NOT EXISTS public.pantry_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -86,8 +87,17 @@ CREATE INDEX IF NOT EXISTS idx_pantry_items_pantry_id ON public.pantry_items(pan
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pantry_items ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Permitir tudo para profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir tudo para pantry_items" ON public.pantry_items FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Profiles owner access" ON public.profiles;
+CREATE POLICY "Profiles owner access"
+ON public.profiles FOR ALL
+USING ((auth.uid())::text = id)
+WITH CHECK ((auth.uid())::text = id);
+
+DROP POLICY IF EXISTS "Pantry items owner access" ON public.pantry_items;
+CREATE POLICY "Pantry items owner access"
+ON public.pantry_items FOR ALL
+USING (pantry_id IN (SELECT pantry_id FROM public.profiles WHERE id = (auth.uid())::text))
+WITH CHECK (pantry_id IN (SELECT pantry_id FROM public.profiles WHERE id = (auth.uid())::text));
 `;
 
 function decodeJwt(token: string) {
@@ -173,32 +183,37 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      // 1. Verificar se há usuário local
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        localStorage.removeItem('current_user');
+        return;
+      }
+
       const savedUser = localStorage.getItem('current_user');
       if (savedUser) {
         try {
           const user = JSON.parse(savedUser);
-          setCurrentUser(user);
-          setCurrentView('dashboard');
-          loadPantryData(user.pantryId);
-          return;
-        } catch (e) { localStorage.removeItem('current_user'); }
+          if (user.id === session.user.id) {
+            setCurrentUser(user);
+            setCurrentView('dashboard');
+            loadPantryData(user.pantryId);
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem('current_user');
+        }
       }
 
-      // 2. Verificar se retornou de um login OAuth (Supabase)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { email, user_metadata, id } = session.user;
-        handleExternalProfileSync({
-          email: email || '',
-          name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
-          id: id
-        });
-      }
+      const { email, user_metadata, id } = session.user;
+      handleExternalProfileSync({
+        email: email || '',
+        name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
+        id
+      });
     };
-    
+
     checkSession();
-    
+
     const savedLang = localStorage.getItem('app_lang');
     if (savedLang) setLang(savedLang as Language);
   }, []);
@@ -331,70 +346,100 @@ const App: React.FC = () => {
       alert("Erro de configuração do banco de dados.");
       return;
     }
+
     setIsDataLoading(true);
     setDbTableError(null);
-    
+
     try {
+      if (isRegistering) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: { data: { full_name: authName } }
+        });
+
+        if (authError) throw authError;
+
+        if (!authData.user) {
+          alert("Conta criada. Verifique seu e-mail para confirmar o cadastro.");
+          setIsRegistering(false);
+          return;
+        }
+
+        const pantryId = Math.random().toString(36).substr(2, 9);
+        const { error: insError } = await supabase
+          .from('profiles')
+          .upsert([{ id: authData.user.id, email: authEmail, name: authName, pantry_id: pantryId }], { onConflict: 'id' });
+
+        if (insError) {
+          if (insError.code === '42P01') {
+            setDbTableError('profiles');
+            return;
+          }
+          throw insError;
+        }
+
+        const user = { id: authData.user.id, email: authEmail, name: authName, pantryId };
+        setCurrentUser(user);
+        localStorage.setItem('current_user', JSON.stringify(user));
+        await loadPantryData(user.pantryId);
+        setCurrentView('dashboard');
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: authPassword
+      });
+
+      if (authError) {
+        alert("Credenciais inválidas.");
+        return;
+      }
+
+      if (!authData.user) {
+        throw new Error("Usuário não retornado após login.");
+      }
+
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', authEmail)
+        .eq('id', authData.user.id)
         .maybeSingle();
 
       if (error) {
         if (error.code === '42P01') {
           setDbTableError('profiles');
-          setIsDataLoading(false);
           return;
         }
         throw error;
       }
 
-      if (isRegistering) {
-        if (profile) {
-          alert("Já existe uma conta com este e-mail.");
-          setIsDataLoading(false);
-          return;
-        }
-        
-        const id = Math.random().toString(36).substr(2, 9);
+      let resolvedProfile = profile;
+      if (!resolvedProfile) {
         const pantryId = Math.random().toString(36).substr(2, 9);
-        const { error: insError } = await supabase
+        const fallbackName = authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Usuário';
+        const { data: createdProfile, error: createError } = await supabase
           .from('profiles')
-          .insert([{ 
-            id, 
-            email: authEmail, 
-            name: authName, 
-            pantry_id: pantryId,
-            password: authPassword
-          }]);
+          .insert([{ id: authData.user.id, email: authData.user.email || authEmail, name: fallbackName, pantry_id: pantryId }])
+          .select('*')
+          .single();
 
-        if (insError) throw insError;
-        
-        const user = { id, email: authEmail, name: authName, pantryId };
-        setCurrentUser(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
-        setCurrentView('dashboard');
-      } else {
-        if (!profile) {
-          alert("Conta não encontrada. Deseja criar uma?");
-          setIsRegistering(true);
-          setIsDataLoading(false);
-          return;
-        }
-
-        if (profile.password && profile.password !== authPassword) {
-          alert("Senha incorreta.");
-          setIsDataLoading(false);
-          return;
-        }
-
-        const user = { id: profile.id, email: profile.email, name: profile.name, pantryId: profile.pantry_id };
-        setCurrentUser(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
-        await loadPantryData(user.pantryId);
-        setCurrentView('dashboard');
+        if (createError) throw createError;
+        resolvedProfile = createdProfile;
       }
+
+      const user = {
+        id: resolvedProfile.id,
+        email: resolvedProfile.email,
+        name: resolvedProfile.name,
+        pantryId: resolvedProfile.pantry_id
+      };
+
+      setCurrentUser(user);
+      localStorage.setItem('current_user', JSON.stringify(user));
+      await loadPantryData(user.pantryId);
+      setCurrentView('dashboard');
     } catch (e: any) {
       console.error("Erro handleAuth:", e);
       alert("Erro: " + (e.message || "Erro desconhecido."));
@@ -462,12 +507,6 @@ const App: React.FC = () => {
     }
 
     const normalizedSpokenName = cleanVoiceProductName(productName);
-  const applyVoiceStockUpdate = async (productName: string, amount: number, action?: 'add' | 'consume') => {
-    if (!currentUser || !IS_CONFIGURED || !productName || !Number.isFinite(amount) || amount <= 0) {
-      return { ok: false, reason: 'invalid_input' };
-    }
-
-    const normalizedSpokenName = normalizeText(productName);
     const matchedItem = pantryRef.current.find((item) => {
       const normalizedItemName = normalizeText(item.name);
       return (
@@ -486,8 +525,6 @@ const App: React.FC = () => {
     const signedDelta = resolvedAction === 'consume' ? -Math.abs(resolvedAmount) : Math.abs(resolvedAmount);
     const currentQty = Number(matchedItem.currentQuantity) || 0;
     const newQty = Math.max(0, currentQty + signedDelta);
-    const signedDelta = action === 'consume' ? -Math.abs(amount) : Math.abs(amount);
-    const newQty = Math.max(0, matchedItem.currentQuantity + signedDelta);
 
     setPantry((prev) =>
       prev.map((item) => (item.id === matchedItem.id ? { ...item, currentQuantity: newQty } : item))
@@ -506,7 +543,6 @@ const App: React.FC = () => {
 
     const actionText = signedDelta < 0 ? 'consumed' : 'added';
     setVoiceLog(`${matchedItem.name}: ${Math.abs(resolvedAmount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
-    setVoiceLog(`${matchedItem.name}: ${Math.abs(amount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
     return { ok: true };
   };
 
