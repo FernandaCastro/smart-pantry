@@ -177,6 +177,7 @@ const App: React.FC = () => {
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
@@ -547,15 +548,29 @@ const App: React.FC = () => {
   };
 
   const startVoiceSession = async () => {
-    try {
+    const apiKey = getSafeEnv('API_KEY') || getSafeEnv('GEMINI_API_KEY');
+    if (!apiKey) {
+      setVoiceLog('API key da IA não configurada. Defina API_KEY ou GEMINI_API_KEY no .env.');
       setIsVoiceActive(true);
-      const api_key = getSafeEnv('API_KEY');
-      const ai = new GoogleGenAI({ apiKey: api_key || '' });
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceLog('Microfone indisponível neste navegador/dispositivo.');
+      setIsVoiceActive(true);
+      return;
+    }
+
+    try {
+      setVoiceLog('');
+      setIsVoiceActive(true);
+      const ai = new GoogleGenAI({ apiKey });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+      mediaStreamRef.current = stream;
+
       const updateStockTool = {
         name: 'updatePantryQuantity',
         parameters: {
@@ -604,7 +619,10 @@ const App: React.FC = () => {
             }
           },
           onclose: () => stopVoiceSession(),
-          onerror: () => stopVoiceSession()
+          onerror: () => {
+            setVoiceLog('Erro na sessão de voz. Tente novamente.');
+            stopVoiceSession();
+          }
         },
         config: {
           responseModalities: [Modality.AUDIO],
@@ -619,12 +637,21 @@ When calling the updatePantryQuantity tool:
         }
       });
       sessionRef.current = await sessionPromise;
-    } catch (err) { setIsVoiceActive(false); }
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Não foi possível iniciar o assistente de voz.';
+      console.error('Voice session error:', err);
+      setVoiceLog(errorMessage);
+      stopVoiceSession();
+    }
   };
 
   const stopVoiceSession = () => {
     setIsVoiceActive(false);
     if (sessionRef.current) { try { sessionRef.current.close(); } catch (e) {} sessionRef.current = null; }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
     if (audioContextsRef.current) {
       const { input, output } = audioContextsRef.current;
       if (input.state !== 'closed') input.close().catch(() => {});
