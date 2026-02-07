@@ -53,8 +53,8 @@ const GOOGLE_CLIENT_ID = getSafeEnv('GOOGLE_CLIENT_ID');
 const IS_CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL.startsWith('http'));
 
 const supabase = createClient(
-  SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_KEY || 'placeholder'
+  SUPABASE_URL,
+  SUPABASE_KEY
 );
 
 function decodeJwt(token: string) {
