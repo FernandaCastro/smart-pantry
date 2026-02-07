@@ -114,6 +114,13 @@ function decode(base64: string) {
   return bytes;
 }
 
+const normalizeText = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
 async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
@@ -412,6 +419,88 @@ const App: React.FC = () => {
     setPantry([]);
   };
 
+
+  const parseVoiceAmount = (amount: unknown, rawProductText: string) => {
+    if (typeof amount === 'number' && Number.isFinite(amount)) return Math.abs(amount);
+    if (typeof amount === 'string') {
+      const parsed = Number(amount.replace(',', '.').trim());
+      if (Number.isFinite(parsed)) return Math.abs(parsed);
+    }
+
+    const fromText = rawProductText.match(/(\d+[.,]?\d*)/);
+    if (!fromText) return NaN;
+    const parsed = Number(fromText[1].replace(',', '.'));
+    return Number.isFinite(parsed) ? Math.abs(parsed) : NaN;
+  };
+
+  const cleanVoiceProductName = (rawName: string) =>
+    normalizeText(rawName)
+      .replace(/\b\d+[.,]?\d*\b/g, ' ')
+      .replace(/\b(de|do|da|dos|das|um|uma|quilo|quilos|kg|grama|gramas|g|litro|litros|ml|unidade|unidades)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const normalizeVoiceAction = (action: unknown, rawName: string): 'add' | 'consume' => {
+    const actionText = normalizeText(String(action || ''));
+    const nameText = normalizeText(rawName);
+
+    if (['consume', 'consumir', 'consumi', 'retirar', 'retirei', 'usei', 'gastei'].some((k) => actionText.includes(k) || nameText.includes(k))) {
+      return 'consume';
+    }
+
+    return 'add';
+  };
+
+  const applyVoiceStockUpdate = async (productName: string, amount: unknown, action?: unknown) => {
+    if (!currentUser || !IS_CONFIGURED || !productName) {
+      return { ok: false, reason: 'invalid_input' };
+    }
+
+    const resolvedAmount = parseVoiceAmount(amount, productName);
+    if (!Number.isFinite(resolvedAmount) || resolvedAmount <= 0) {
+      return { ok: false, reason: 'invalid_amount' };
+    }
+
+    const normalizedSpokenName = cleanVoiceProductName(productName);
+    const matchedItem = pantryRef.current.find((item) => {
+      const normalizedItemName = normalizeText(item.name);
+      return (
+        normalizedItemName === normalizedSpokenName ||
+        normalizedItemName.includes(normalizedSpokenName) ||
+        normalizedSpokenName.includes(normalizedItemName)
+      );
+    });
+
+    if (!matchedItem) {
+      setVoiceLog(`Item not found: ${productName}`);
+      return { ok: false, reason: 'not_found' };
+    }
+
+    const resolvedAction = normalizeVoiceAction(action, productName);
+    const signedDelta = resolvedAction === 'consume' ? -Math.abs(resolvedAmount) : Math.abs(resolvedAmount);
+    const currentQty = Number(matchedItem.currentQuantity) || 0;
+    const newQty = Math.max(0, currentQty + signedDelta);
+
+    setPantry((prev) =>
+      prev.map((item) => (item.id === matchedItem.id ? { ...item, currentQuantity: newQty } : item))
+    );
+
+    const { error } = await supabase
+      .from('pantry_items')
+      .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
+      .eq('id', matchedItem.id);
+
+    if (error) {
+      await loadPantryData(currentUser.pantryId);
+      setVoiceLog(`Failed to update ${matchedItem.name}`);
+      return { ok: false, reason: 'db_error' };
+    }
+
+    const actionText = signedDelta < 0 ? 'consumed' : 'added';
+    setVoiceLog(`${matchedItem.name}: ${Math.abs(resolvedAmount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
+    return { ok: true };
+  };
+
   const startVoiceSession = async () => {
     try {
       setIsVoiceActive(true);
@@ -427,7 +516,7 @@ const App: React.FC = () => {
         parameters: {
           type: Type.OBJECT,
           description: 'Updates the quantity of a product in the pantry.',
-          properties: { productName: { type: Type.STRING }, amount: { type: Type.NUMBER } },
+          properties: { productName: { type: Type.STRING }, amount: { type: Type.NUMBER }, action: { type: Type.STRING, enum: ['add', 'consume'] } },
           required: ['productName', 'amount']
         }
       };
@@ -451,9 +540,9 @@ const App: React.FC = () => {
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
-                  const { productName, amount } = fc.args as any;
-                  setVoiceLog(`Voz: ${productName} (${amount})`);
-                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: "ok" } } }));
+                  const { productName, amount, action } = fc.args as any;
+                  const result = await applyVoiceStockUpdate(productName, amount, action);
+                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: result.ok ? "ok" : "error", reason: result.reason } } }));
                 }
               }
             }
@@ -475,7 +564,13 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `Você é o assistente da Despensa Inteligente.`,
+          systemInstruction: `You are the Smart Pantry voice assistant for Brazilian Portuguese and English users.
+When calling the updatePantryQuantity tool:
+- use action="consume" for consumption/removal and action="add" for refill/addition;
+- always send amount as a positive number;
+- productName must be only the product name (do not include quantity or units);
+- confirm to the user which item was updated and the new balance.
+`,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         }
       });
