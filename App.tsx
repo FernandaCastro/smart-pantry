@@ -114,6 +114,13 @@ function decode(base64: string) {
   return bytes;
 }
 
+const normalizeText = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
 async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
@@ -412,6 +419,50 @@ const App: React.FC = () => {
     setPantry([]);
   };
 
+
+  const applyVoiceStockUpdate = async (productName: string, amount: number, action?: 'add' | 'consume') => {
+    if (!currentUser || !IS_CONFIGURED || !productName || !Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, reason: 'invalid_input' };
+    }
+
+    const normalizedSpokenName = normalizeText(productName);
+    const matchedItem = pantryRef.current.find((item) => {
+      const normalizedItemName = normalizeText(item.name);
+      return (
+        normalizedItemName === normalizedSpokenName ||
+        normalizedItemName.includes(normalizedSpokenName) ||
+        normalizedSpokenName.includes(normalizedItemName)
+      );
+    });
+
+    if (!matchedItem) {
+      setVoiceLog(`Item not found: ${productName}`);
+      return { ok: false, reason: 'not_found' };
+    }
+
+    const signedDelta = action === 'consume' ? -Math.abs(amount) : Math.abs(amount);
+    const newQty = Math.max(0, matchedItem.currentQuantity + signedDelta);
+
+    setPantry((prev) =>
+      prev.map((item) => (item.id === matchedItem.id ? { ...item, currentQuantity: newQty } : item))
+    );
+
+    const { error } = await supabase
+      .from('pantry_items')
+      .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
+      .eq('id', matchedItem.id);
+
+    if (error) {
+      await loadPantryData(currentUser.pantryId);
+      setVoiceLog(`Failed to update ${matchedItem.name}`);
+      return { ok: false, reason: 'db_error' };
+    }
+
+    const actionText = signedDelta < 0 ? 'consumed' : 'added';
+    setVoiceLog(`${matchedItem.name}: ${Math.abs(amount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
+    return { ok: true };
+  };
+
   const startVoiceSession = async () => {
     try {
       setIsVoiceActive(true);
@@ -427,7 +478,7 @@ const App: React.FC = () => {
         parameters: {
           type: Type.OBJECT,
           description: 'Updates the quantity of a product in the pantry.',
-          properties: { productName: { type: Type.STRING }, amount: { type: Type.NUMBER } },
+          properties: { productName: { type: Type.STRING }, amount: { type: Type.NUMBER }, action: { type: Type.STRING, enum: ['add', 'consume'] } },
           required: ['productName', 'amount']
         }
       };
@@ -451,9 +502,9 @@ const App: React.FC = () => {
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
-                  const { productName, amount } = fc.args as any;
-                  setVoiceLog(`Voz: ${productName} (${amount})`);
-                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: "ok" } } }));
+                  const { productName, amount, action } = fc.args as any;
+                  const result = await applyVoiceStockUpdate(productName, Number(amount), action);
+                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: result.ok ? "ok" : "error", reason: result.reason } } }));
                 }
               }
             }
@@ -475,7 +526,12 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `Você é o assistente da Despensa Inteligente.`,
+          systemInstruction: `You are the Smart Pantry voice assistant.
+When calling the updatePantryQuantity tool:
+- use action="consume" for consumption/removal and action="add" for refill/addition;
+- always send amount as a positive number;
+- confirm to the user which item was updated and the new balance.
+`,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         }
       });
