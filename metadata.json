@@ -1,0 +1,7 @@
+{
+  "name": "Smart Pantry",
+  "description": "Um gerenciador de despensa inteligente que automatiza sua lista de compras com base no estoque mínimo e oferece sugestões usando IA.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
