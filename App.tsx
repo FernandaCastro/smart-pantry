@@ -462,12 +462,6 @@ const App: React.FC = () => {
     }
 
     const normalizedSpokenName = cleanVoiceProductName(productName);
-  const applyVoiceStockUpdate = async (productName: string, amount: number, action?: 'add' | 'consume') => {
-    if (!currentUser || !IS_CONFIGURED || !productName || !Number.isFinite(amount) || amount <= 0) {
-      return { ok: false, reason: 'invalid_input' };
-    }
-
-    const normalizedSpokenName = normalizeText(productName);
     const matchedItem = pantryRef.current.find((item) => {
       const normalizedItemName = normalizeText(item.name);
       return (
@@ -486,8 +480,6 @@ const App: React.FC = () => {
     const signedDelta = resolvedAction === 'consume' ? -Math.abs(resolvedAmount) : Math.abs(resolvedAmount);
     const currentQty = Number(matchedItem.currentQuantity) || 0;
     const newQty = Math.max(0, currentQty + signedDelta);
-    const signedDelta = action === 'consume' ? -Math.abs(amount) : Math.abs(amount);
-    const newQty = Math.max(0, matchedItem.currentQuantity + signedDelta);
 
     setPantry((prev) =>
       prev.map((item) => (item.id === matchedItem.id ? { ...item, currentQuantity: newQty } : item))
@@ -506,7 +498,6 @@ const App: React.FC = () => {
 
     const actionText = signedDelta < 0 ? 'consumed' : 'added';
     setVoiceLog(`${matchedItem.name}: ${Math.abs(resolvedAmount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
-    setVoiceLog(`${matchedItem.name}: ${Math.abs(amount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
     return { ok: true };
   };
 
