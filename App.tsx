@@ -36,6 +36,7 @@ import { Product, ViewType, Unit, User, Language } from './types';
 import { CATEGORIES, UNITS } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
+import SQL_SETUP_SCRIPT from './database.sql?raw';
 
 const getSafeEnv = (key: string) => {
   try {
@@ -55,40 +56,6 @@ const supabase = createClient(
   SUPABASE_URL || 'https://placeholder.supabase.co',
   SUPABASE_KEY || 'placeholder'
 );
-
-const SQL_SETUP_SCRIPT = `-- SCRIPT DE INICIALIZAÇÃO SMART PANTRY
--- Copie e cole no SQL Editor do seu Dashboard do Supabase
-
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  pantry_id TEXT NOT NULL,
-  password TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.pantry_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  pantry_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  category TEXT,
-  current_quantity NUMERIC DEFAULT 0,
-  min_quantity NUMERIC DEFAULT 0,
-  unit TEXT,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_pantry_items_pantry_id ON public.pantry_items(pantry_id);
-
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pantry_items ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Permitir tudo para profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir tudo para pantry_items" ON public.pantry_items FOR ALL USING (true) WITH CHECK (true);
-`;
 
 function decodeJwt(token: string) {
   try {
@@ -167,38 +134,44 @@ const App: React.FC = () => {
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
 
   useEffect(() => {
     const checkSession = async () => {
-      // 1. Verificar se há usuário local
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        localStorage.removeItem('current_user');
+        return;
+      }
+
       const savedUser = localStorage.getItem('current_user');
       if (savedUser) {
         try {
           const user = JSON.parse(savedUser);
-          setCurrentUser(user);
-          setCurrentView('dashboard');
-          loadPantryData(user.pantryId);
-          return;
-        } catch (e) { localStorage.removeItem('current_user'); }
+          if (user.id === session.user.id) {
+            setCurrentUser(user);
+            setCurrentView('dashboard');
+            loadPantryData(user.pantryId);
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem('current_user');
+        }
       }
 
-      // 2. Verificar se retornou de um login OAuth (Supabase)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { email, user_metadata, id } = session.user;
-        handleExternalProfileSync({
-          email: email || '',
-          name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
-          id: id
-        });
-      }
+      const { email, user_metadata, id } = session.user;
+      handleExternalProfileSync({
+        email: email || '',
+        name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
+        id
+      });
     };
-    
+
     checkSession();
-    
+
     const savedLang = localStorage.getItem('app_lang');
     if (savedLang) setLang(savedLang as Language);
   }, []);
@@ -331,70 +304,100 @@ const App: React.FC = () => {
       alert("Erro de configuração do banco de dados.");
       return;
     }
+
     setIsDataLoading(true);
     setDbTableError(null);
-    
+
     try {
+      if (isRegistering) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: { data: { full_name: authName } }
+        });
+
+        if (authError) throw authError;
+
+        if (!authData.user) {
+          alert("Conta criada. Verifique seu e-mail para confirmar o cadastro.");
+          setIsRegistering(false);
+          return;
+        }
+
+        const pantryId = Math.random().toString(36).substr(2, 9);
+        const { error: insError } = await supabase
+          .from('profiles')
+          .upsert([{ id: authData.user.id, email: authEmail, name: authName, pantry_id: pantryId }], { onConflict: 'id' });
+
+        if (insError) {
+          if (insError.code === '42P01') {
+            setDbTableError('profiles');
+            return;
+          }
+          throw insError;
+        }
+
+        const user = { id: authData.user.id, email: authEmail, name: authName, pantryId };
+        setCurrentUser(user);
+        localStorage.setItem('current_user', JSON.stringify(user));
+        await loadPantryData(user.pantryId);
+        setCurrentView('dashboard');
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: authPassword
+      });
+
+      if (authError) {
+        alert("Credenciais inválidas.");
+        return;
+      }
+
+      if (!authData.user) {
+        throw new Error("Usuário não retornado após login.");
+      }
+
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', authEmail)
+        .eq('id', authData.user.id)
         .maybeSingle();
 
       if (error) {
         if (error.code === '42P01') {
           setDbTableError('profiles');
-          setIsDataLoading(false);
           return;
         }
         throw error;
       }
 
-      if (isRegistering) {
-        if (profile) {
-          alert("Já existe uma conta com este e-mail.");
-          setIsDataLoading(false);
-          return;
-        }
-        
-        const id = Math.random().toString(36).substr(2, 9);
+      let resolvedProfile = profile;
+      if (!resolvedProfile) {
         const pantryId = Math.random().toString(36).substr(2, 9);
-        const { error: insError } = await supabase
+        const fallbackName = authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Usuário';
+        const { data: createdProfile, error: createError } = await supabase
           .from('profiles')
-          .insert([{ 
-            id, 
-            email: authEmail, 
-            name: authName, 
-            pantry_id: pantryId,
-            password: authPassword
-          }]);
+          .insert([{ id: authData.user.id, email: authData.user.email || authEmail, name: fallbackName, pantry_id: pantryId }])
+          .select('*')
+          .single();
 
-        if (insError) throw insError;
-        
-        const user = { id, email: authEmail, name: authName, pantryId };
-        setCurrentUser(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
-        setCurrentView('dashboard');
-      } else {
-        if (!profile) {
-          alert("Conta não encontrada. Deseja criar uma?");
-          setIsRegistering(true);
-          setIsDataLoading(false);
-          return;
-        }
-
-        if (profile.password && profile.password !== authPassword) {
-          alert("Senha incorreta.");
-          setIsDataLoading(false);
-          return;
-        }
-
-        const user = { id: profile.id, email: profile.email, name: profile.name, pantryId: profile.pantry_id };
-        setCurrentUser(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
-        await loadPantryData(user.pantryId);
-        setCurrentView('dashboard');
+        if (createError) throw createError;
+        resolvedProfile = createdProfile;
       }
+
+      const user = {
+        id: resolvedProfile.id,
+        email: resolvedProfile.email,
+        name: resolvedProfile.name,
+        pantryId: resolvedProfile.pantry_id
+      };
+
+      setCurrentUser(user);
+      localStorage.setItem('current_user', JSON.stringify(user));
+      await loadPantryData(user.pantryId);
+      setCurrentView('dashboard');
     } catch (e: any) {
       console.error("Erro handleAuth:", e);
       alert("Erro: " + (e.message || "Erro desconhecido."));
@@ -462,12 +465,6 @@ const App: React.FC = () => {
     }
 
     const normalizedSpokenName = cleanVoiceProductName(productName);
-  const applyVoiceStockUpdate = async (productName: string, amount: number, action?: 'add' | 'consume') => {
-    if (!currentUser || !IS_CONFIGURED || !productName || !Number.isFinite(amount) || amount <= 0) {
-      return { ok: false, reason: 'invalid_input' };
-    }
-
-    const normalizedSpokenName = normalizeText(productName);
     const matchedItem = pantryRef.current.find((item) => {
       const normalizedItemName = normalizeText(item.name);
       return (
@@ -486,8 +483,6 @@ const App: React.FC = () => {
     const signedDelta = resolvedAction === 'consume' ? -Math.abs(resolvedAmount) : Math.abs(resolvedAmount);
     const currentQty = Number(matchedItem.currentQuantity) || 0;
     const newQty = Math.max(0, currentQty + signedDelta);
-    const signedDelta = action === 'consume' ? -Math.abs(amount) : Math.abs(amount);
-    const newQty = Math.max(0, matchedItem.currentQuantity + signedDelta);
 
     setPantry((prev) =>
       prev.map((item) => (item.id === matchedItem.id ? { ...item, currentQuantity: newQty } : item))
@@ -506,20 +501,33 @@ const App: React.FC = () => {
 
     const actionText = signedDelta < 0 ? 'consumed' : 'added';
     setVoiceLog(`${matchedItem.name}: ${Math.abs(resolvedAmount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
-    setVoiceLog(`${matchedItem.name}: ${Math.abs(amount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
     return { ok: true };
   };
 
   const startVoiceSession = async () => {
-    try {
+    const apiKey = getSafeEnv('API_KEY') || getSafeEnv('GEMINI_API_KEY');
+    if (!apiKey) {
+      setVoiceLog('API key da IA não configurada. Defina API_KEY ou GEMINI_API_KEY no .env.');
       setIsVoiceActive(true);
-      const api_key = getSafeEnv('API_KEY');
-      const ai = new GoogleGenAI({ apiKey: api_key || '' });
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceLog('Microfone indisponível neste navegador/dispositivo.');
+      setIsVoiceActive(true);
+      return;
+    }
+
+    try {
+      setVoiceLog('');
+      setIsVoiceActive(true);
+      const ai = new GoogleGenAI({ apiKey });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+      mediaStreamRef.current = stream;
+
       const updateStockTool = {
         name: 'updatePantryQuantity',
         parameters: {
@@ -568,7 +576,10 @@ const App: React.FC = () => {
             }
           },
           onclose: () => stopVoiceSession(),
-          onerror: () => stopVoiceSession()
+          onerror: () => {
+            setVoiceLog('Erro na sessão de voz. Tente novamente.');
+            stopVoiceSession();
+          }
         },
         config: {
           responseModalities: [Modality.AUDIO],
@@ -583,12 +594,21 @@ When calling the updatePantryQuantity tool:
         }
       });
       sessionRef.current = await sessionPromise;
-    } catch (err) { setIsVoiceActive(false); }
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Não foi possível iniciar o assistente de voz.';
+      console.error('Voice session error:', err);
+      setVoiceLog(errorMessage);
+      stopVoiceSession();
+    }
   };
 
   const stopVoiceSession = () => {
     setIsVoiceActive(false);
     if (sessionRef.current) { try { sessionRef.current.close(); } catch (e) {} sessionRef.current = null; }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
     if (audioContextsRef.current) {
       const { input, output } = audioContextsRef.current;
       if (input.state !== 'closed') input.close().catch(() => {});
