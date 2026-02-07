@@ -462,6 +462,12 @@ const App: React.FC = () => {
     }
 
     const normalizedSpokenName = cleanVoiceProductName(productName);
+  const applyVoiceStockUpdate = async (productName: string, amount: number, action?: 'add' | 'consume') => {
+    if (!currentUser || !IS_CONFIGURED || !productName || !Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, reason: 'invalid_input' };
+    }
+
+    const normalizedSpokenName = normalizeText(productName);
     const matchedItem = pantryRef.current.find((item) => {
       const normalizedItemName = normalizeText(item.name);
       return (
@@ -480,6 +486,8 @@ const App: React.FC = () => {
     const signedDelta = resolvedAction === 'consume' ? -Math.abs(resolvedAmount) : Math.abs(resolvedAmount);
     const currentQty = Number(matchedItem.currentQuantity) || 0;
     const newQty = Math.max(0, currentQty + signedDelta);
+    const signedDelta = action === 'consume' ? -Math.abs(amount) : Math.abs(amount);
+    const newQty = Math.max(0, matchedItem.currentQuantity + signedDelta);
 
     setPantry((prev) =>
       prev.map((item) => (item.id === matchedItem.id ? { ...item, currentQuantity: newQty } : item))
@@ -498,6 +506,7 @@ const App: React.FC = () => {
 
     const actionText = signedDelta < 0 ? 'consumed' : 'added';
     setVoiceLog(`${matchedItem.name}: ${Math.abs(resolvedAmount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
+    setVoiceLog(`${matchedItem.name}: ${Math.abs(amount)} ${matchedItem.unit} ${actionText}. Current: ${newQty} ${matchedItem.unit}`);
     return { ok: true };
   };
 
@@ -564,11 +573,10 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `You are the Smart Pantry voice assistant for Brazilian Portuguese and English users.
+          systemInstruction: `You are the Smart Pantry voice assistant.
 When calling the updatePantryQuantity tool:
 - use action="consume" for consumption/removal and action="add" for refill/addition;
 - always send amount as a positive number;
-- productName must be only the product name (do not include quantity or units);
 - confirm to the user which item was updated and the new balance.
 `,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
