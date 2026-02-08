@@ -6,7 +6,7 @@
 
 Smart Pantry is an AI-assisted pantry management application designed to help users organize household inventory, track item quantities, and improve replenishment decisions with a modern, responsive web interface.
 
-The project combines a React + Vite frontend with Supabase (database/auth) and Gemini-powered features.
+The project combines a React + Vite frontend with Supabase (database/auth/serverless) and Gemini-powered features.
 
 ## Project origin and collaboration model
 
@@ -14,9 +14,9 @@ The initial version of this application was generated in **Google AI Studio**.
 
 All subsequent iterations, refinements, and ongoing development interactions are being carried out through **Codex**.
 
-## Architecture direction (Option A)
+## Architecture direction (Quick and pragmatic approach: Supabase + a serverless layer)
 
-This repository now follows **Option A** for backend evolution:
+This repository now follows a **Quick and pragmatic approach** for backend evolution:
 - Keep Supabase as the backend platform (Auth + Postgres).
 - Move AI calls to a secure server-side layer using **Supabase Edge Functions**.
 - Keep the frontend focused on UI and interaction logic.
@@ -42,10 +42,8 @@ This is the first step toward a fuller feature-based modular structure.
 1. Install dependencies:
    `npm install`
 2. Create a `.env` file (you can copy `.env.example`) and set:
-   - `VITE_API_KEY` or `VITE_GEMINI_API_KEY`
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_GOOGLE_CLIENT_ID`
 3. Start the development server:
    `npm run dev`
 
