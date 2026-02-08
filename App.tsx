@@ -36,6 +36,7 @@ import { Product, ViewType, Unit, User, Language } from './types';
 import { CATEGORIES, UNITS } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
+import { ENV_CONFIG } from './config';
 
 const getSafeEnv = (key: string) => {
   try {
@@ -45,9 +46,9 @@ const getSafeEnv = (key: string) => {
   }
 };
 
-const SUPABASE_URL = getSafeEnv('SUPABASE_URL');
-const SUPABASE_KEY = getSafeEnv('SUPABASE_KEY');
-const GOOGLE_CLIENT_ID = getSafeEnv('GOOGLE_CLIENT_ID');
+const SUPABASE_URL = getSafeEnv('SUPABASE_URL') || ENV_CONFIG.SUPABASE_URL;
+const SUPABASE_KEY = getSafeEnv('SUPABASE_KEY') || ENV_CONFIG.SUPABASE_KEY;
+const GOOGLE_CLIENT_ID = getSafeEnv('GOOGLE_CLIENT_ID') || ENV_CONFIG.GOOGLE_CLIENT_ID;
 
 const IS_CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL.startsWith('http'));
 
@@ -672,14 +673,14 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-2xl font-black text-gray-900 mb-4">Configuração Necessária</h1>
           <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-            As chaves do Supabase e do Google não foram detectadas. Certifique-se de que o arquivo <code>.env</code> está preenchido corretamente.
+            As chaves do Supabase e do Google não foram detectadas. Certifique-se de que o arquivo <code>config.ts</code> está preenchido corretamente.
           </p>
           <div className="w-full p-4 bg-gray-50 rounded-2xl text-left font-mono text-xs text-gray-400 mb-8 border border-gray-100">
-            SUPABASE_URL: {SUPABASE_URL ? 'OK' : 'Pendente'}<br/>
-            SUPABASE_KEY: {SUPABASE_KEY ? 'OK' : 'Pendente'}<br/>
-            GOOGLE_ID: {GOOGLE_CLIENT_ID ? 'OK' : 'Pendente'}
+            SUPABASE_URL: {ENV_CONFIG.SUPABASE_URL ? 'OK' : 'Pendente'}<br/>
+            SUPABASE_KEY: {ENV_CONFIG.SUPABASE_KEY ? 'OK' : 'Pendente'}<br/>
+            GOOGLE_ID: {ENV_CONFIG.GOOGLE_CLIENT_ID ? 'OK' : 'Pendente'}
           </div>
-          <p className="text-xs text-gray-400">Verifique o arquivo .env para continuar.</p>
+          <p className="text-xs text-gray-400">Verifique o arquivo config.ts para continuar.</p>
         </div>
       </div>
     );
