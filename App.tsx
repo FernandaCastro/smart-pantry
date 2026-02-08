@@ -36,19 +36,13 @@ import { Product, ViewType, Unit, User, Language } from './types';
 import { CATEGORIES, UNITS } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
-import { ENV_CONFIG } from './config';
+import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from './voiceUtils';
+const APP_ENV = import.meta.env;
 
-const getSafeEnv = (key: string) => {
-  try {
-    return typeof process !== 'undefined' ? (process.env as any)[key] : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const SUPABASE_URL = getSafeEnv('SUPABASE_URL') || ENV_CONFIG.SUPABASE_URL;
-const SUPABASE_KEY = getSafeEnv('SUPABASE_KEY') || ENV_CONFIG.SUPABASE_KEY;
-const GOOGLE_CLIENT_ID = getSafeEnv('GOOGLE_CLIENT_ID') || ENV_CONFIG.GOOGLE_CLIENT_ID;
+const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
+const SUPABASE_KEY = APP_ENV.VITE_SUPABASE_KEY || '';
+const GOOGLE_CLIENT_ID = APP_ENV.VITE_GOOGLE_CLIENT_ID || '';
+const API_KEY = APP_ENV.VITE_API_KEY || APP_ENV.VITE_GEMINI_API_KEY || '';
 
 const IS_CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL.startsWith('http'));
 
@@ -161,6 +155,7 @@ const App: React.FC = () => {
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const voiceQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
@@ -413,11 +408,91 @@ const App: React.FC = () => {
     setPantry([]);
   };
 
+  const applyVoicePantryUpdate = async (args: any) => {
+    if (!currentUser || !IS_CONFIGURED) {
+      return { status: 'error', message: 'Sessão indisponível.' };
+    }
+
+    const productName = String(args?.productName || '').trim();
+    const amount = Number(args?.amount);
+    const intent = inferVoiceIntent(args);
+    const unit = normalizeVoiceUnit(args?.unit);
+    const category = normalizeVoiceCategory(args?.category);
+
+    if (!productName || !Number.isFinite(amount) || amount <= 0 || !intent) {
+      const message = 'Comando de voz inválido.';
+      setVoiceLog(message);
+      return { status: 'error', message };
+    }
+
+    try {
+      const existingItem = findBestPantryItemByName(pantryRef.current, productName);
+
+      if (!existingItem && intent === 'consume') {
+        const message = t('productNotFound');
+        setVoiceLog(message);
+        return { status: 'error', message };
+      }
+
+      if (!existingItem && intent === 'add') {
+        const payload = {
+          pantry_id: currentUser.pantryId,
+          name: productName,
+          category,
+          current_quantity: amount,
+          min_quantity: 1,
+          unit,
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase.from('pantry_items').insert([payload]);
+        if (error) throw error;
+
+        await loadPantryData(currentUser.pantryId);
+        const message = t('productCreated').replace('{name}', productName);
+        setVoiceLog(message);
+        return { status: 'created', message, name: productName, quantity: amount, category, unit };
+      }
+
+      const target = existingItem as Product;
+      const newQty = intent === 'consume'
+        ? Math.max(0, target.currentQuantity - amount)
+        : target.currentQuantity + amount;
+
+      const { error } = await supabase
+        .from('pantry_items')
+        .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
+        .eq('id', target.id);
+
+      if (error) throw error;
+
+      await loadPantryData(currentUser.pantryId);
+      const message = t('quantityUpdated').replace('{name}', target.name);
+      setVoiceLog(message);
+      return { status: 'updated', message, id: target.id, quantity: newQty, category: target.category, unit: target.unit };
+    } catch (error: any) {
+      const message = `Erro ao atualizar estoque por voz: ${error.message}`;
+      setVoiceLog(message);
+      return { status: 'error', message };
+    }
+  };
+
+  const enqueueVoiceToolCall = (functionCall: any, sessionPromise: Promise<any>) => {
+    voiceQueueRef.current = voiceQueueRef.current
+      .then(async () => {
+        const result = await applyVoicePantryUpdate(functionCall.args);
+        const session = await sessionPromise;
+        session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: result } });
+      })
+      .catch((error) => {
+        console.error('Erro na fila de comandos de voz:', error);
+      });
+  };
+
   const startVoiceSession = async () => {
     try {
       setIsVoiceActive(true);
-      const api_key = getSafeEnv('API_KEY');
-      const ai = new GoogleGenAI({ apiKey: api_key || '' });
+      const ai = new GoogleGenAI({ apiKey: API_KEY || '' });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
@@ -428,8 +503,14 @@ const App: React.FC = () => {
         parameters: {
           type: Type.OBJECT,
           description: 'Updates the quantity of a product in the pantry.',
-          properties: { productName: { type: Type.STRING }, amount: { type: Type.NUMBER } },
-          required: ['productName', 'amount']
+          properties: {
+            intent: { type: Type.STRING, description: "Use 'consume' to decrease or 'add' to increase stock." },
+            productName: { type: Type.STRING },
+            amount: { type: Type.NUMBER, description: 'Use always a positive amount.' },
+            unit: { type: Type.STRING, description: "Optional. Infer the most likely unit (un, kg, l, g, ml, pacote, caixa)." },
+            category: { type: Type.STRING, description: 'Optional. Infer the product category when possible.' }
+          },
+          required: ['intent', 'productName', 'amount']
         }
       };
 
@@ -452,9 +533,7 @@ const App: React.FC = () => {
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
-                  const { productName, amount } = fc.args as any;
-                  setVoiceLog(`Voz: ${productName} (${amount})`);
-                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: "ok" } } }));
+                  enqueueVoiceToolCall(fc, sessionPromise);
                 }
               }
             }
@@ -476,7 +555,7 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `Você é o assistente da Despensa Inteligente.`,
+          systemInstruction: `Você é o assistente da Despensa Inteligente. Ao chamar updatePantryQuantity: use intent='consume' para consumo e intent='add' para adição; amount sempre positivo; infira unit e category quando houver evidência na fala; se faltar unit/category, envie vazio; normalize para singular quando possível (ex.: 'leites' -> 'leite').`,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         }
       });
@@ -486,6 +565,7 @@ const App: React.FC = () => {
 
   const stopVoiceSession = () => {
     setIsVoiceActive(false);
+    voiceQueueRef.current = Promise.resolve();
     if (sessionRef.current) { try { sessionRef.current.close(); } catch (e) {} sessionRef.current = null; }
     if (audioContextsRef.current) {
       const { input, output } = audioContextsRef.current;
@@ -673,14 +753,14 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-2xl font-black text-gray-900 mb-4">Configuração Necessária</h1>
           <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-            As chaves do Supabase e do Google não foram detectadas. Certifique-se de que o arquivo <code>config.ts</code> está preenchido corretamente.
+            As chaves do Supabase e do Google não foram detectadas. Certifique-se de que o arquivo <code>.env</code> está preenchido corretamente.
           </p>
           <div className="w-full p-4 bg-gray-50 rounded-2xl text-left font-mono text-xs text-gray-400 mb-8 border border-gray-100">
-            SUPABASE_URL: {ENV_CONFIG.SUPABASE_URL ? 'OK' : 'Pendente'}<br/>
-            SUPABASE_KEY: {ENV_CONFIG.SUPABASE_KEY ? 'OK' : 'Pendente'}<br/>
-            GOOGLE_ID: {ENV_CONFIG.GOOGLE_CLIENT_ID ? 'OK' : 'Pendente'}
+            SUPABASE_URL: {SUPABASE_URL ? 'OK' : 'Pendente'}<br/>
+            SUPABASE_KEY: {SUPABASE_KEY ? 'OK' : 'Pendente'}<br/>
+            GOOGLE_ID: {GOOGLE_CLIENT_ID ? 'OK' : 'Pendente'}
           </div>
-          <p className="text-xs text-gray-400">Verifique o arquivo config.ts para continuar.</p>
+          <p className="text-xs text-gray-400">Verifique o arquivo .env para continuar.</p>
         </div>
       </div>
     );
