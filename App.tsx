@@ -1,9 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  ShoppingBasket, 
   Package, 
-  LayoutDashboard, 
   Plus, 
   Minus, 
   Trash2, 
@@ -14,8 +12,6 @@ import {
   Search,
   LogOut,
   Languages,
-  Mic,
-  X,
   CheckCircle2,
   Circle,
   User as UserIcon,
@@ -37,10 +33,13 @@ import { CATEGORIES, UNITS } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
 import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from './voiceUtils';
+import { BottomNav } from './components/BottomNav';
+import { VoiceAssistantOverlay } from './components/VoiceAssistantOverlay';
+import { ProductFormModal } from './components/ProductFormModal';
 const APP_ENV = import.meta.env;
 
 const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = APP_ENV.VITE_SUPABASE_KEY || '';
+const SUPABASE_KEY = APP_ENV.VITE_SUPABASE_ANON_KEY || APP_ENV.VITE_SUPABASE_KEY || '';
 const GOOGLE_CLIENT_ID = APP_ENV.VITE_GOOGLE_CLIENT_ID || '';
 const API_KEY = APP_ENV.VITE_API_KEY || APP_ENV.VITE_GEMINI_API_KEY || '';
 
@@ -672,7 +671,7 @@ const App: React.FC = () => {
   const handleFetchAiSuggestions = async () => {
     if (pantry.length === 0) return;
     setIsLoading(true);
-    const text = await getSmartSuggestions(pantry);
+    const text = await getSmartSuggestions(pantry, lang);
     setAiSuggestions(text);
     setIsLoading(false);
     setCurrentView('ai');
@@ -1054,76 +1053,30 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 flex items-center justify-around z-50 rounded-t-[2.5rem] shadow-2xl h-20 px-2">
-        <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center flex-1 transition-all ${currentView === 'dashboard' ? 'text-violet-600 scale-110' : 'text-gray-300'}`}><LayoutDashboard size={24} /><span className="text-[10px] font-bold mt-1 uppercase">{t('dashboard')}</span></button>
-        <button onClick={() => setCurrentView('pantry')} className={`flex flex-col items-center flex-1 transition-all ${currentView === 'pantry' ? 'text-violet-600 scale-110' : 'text-gray-300'}`}><Package size={24} /><span className="text-[10px] font-bold mt-1 uppercase">{t('pantry')}</span></button>
-        <div className="relative -top-6">
-          <button onClick={startVoiceSession} className={`p-4 rounded-2xl shadow-xl border-4 border-white active:scale-90 transition-all ${isVoiceActive ? 'bg-red-500 animate-pulse' : 'bg-violet-500'}`}><Mic size={24} className="text-white" /></button>
-        </div>
-        <button onClick={() => setCurrentView('shopping')} className={`flex flex-col items-center flex-1 transition-all ${currentView === 'shopping' ? 'text-violet-600 scale-110' : 'text-gray-300'}`}><ShoppingBasket size={24} /><span className="text-[10px] font-bold mt-1 uppercase">{t('shopping')}</span></button>
-        <button onClick={() => setCurrentView('ai')} className={`flex flex-col items-center flex-1 transition-all ${currentView === 'ai' ? 'text-violet-600 scale-110' : 'text-gray-300'}`}><Sparkles size={24} /><span className="text-[10px] font-bold mt-1 uppercase">{t('ai')}</span></button>
-      </nav>
+      <BottomNav
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        onVoiceToggle={startVoiceSession}
+        isVoiceActive={isVoiceActive}
+        t={t}
+      />
 
-      {isVoiceActive && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300">
-           <div className="w-full max-w-md bg-white rounded-[3rem] p-10 flex flex-col items-center text-center shadow-2xl">
-              <div className="relative mb-8"><div className="absolute inset-0 bg-violet-500 rounded-full animate-ping opacity-20"></div><div className="relative w-24 h-24 bg-violet-500 rounded-full flex items-center justify-center text-white shadow-xl"><Mic size={40} /></div></div>
-              <h2 className="text-2xl font-black text-gray-900 mb-2">{t('listening')}</h2>
-              <p className="text-gray-400 text-sm mb-6 px-4">{t('voiceInstruction')}</p>
-              {voiceLog && <div className="w-full p-4 bg-violet-50 rounded-2xl border border-violet-100 text-violet-700 font-bold mb-6">{voiceLog}</div>}
-              <button onClick={stopVoiceSession} className="bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2"><X size={20} /> {t('stopVoice')}</button>
-           </div>
-        </div>
-      )}
+      {isVoiceActive && <VoiceAssistantOverlay voiceLog={voiceLog} onStop={stopVoiceSession} t={t} />}
 
       {!isVoiceActive && currentView === 'pantry' && (
         <button onClick={() => setIsModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all z-40"><Plus size={24} /></button>
       )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={handleCloseModal}></div>
-          <div className="relative w-full max-w-md bg-white rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl">
-            <h2 className="text-2xl font-black text-gray-900 mb-6">{editingProductId ? t('editTitle') : t('addTitle')}</h2>
-            <div className="space-y-5">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('nameLabel')}</label>
-                <input type="text" autoFocus className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('catLabel')}</label>
-                  <select className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('unitLabel')}</label>
-                  <select className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value as Unit})}>
-                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('currQtyLabel')}</label>
-                  <input type="number" className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.currentQuantity} onChange={e => setFormData({...formData, currentQuantity: Number(e.target.value)})} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('minQtyLabel')}</label>
-                  <input type="number" className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.minQuantity} onChange={e => setFormData({...formData, minQuantity: Number(e.target.value)})} />
-                </div>
-              </div>
-              <div className="pt-4 flex gap-3">
-                <button onClick={handleCloseModal} className="flex-1 py-4 text-gray-400 font-bold">{t('cancel')}</button>
-                <button onClick={handleSaveProduct} disabled={isLoading || !formData.name} className="flex-[2] bg-violet-500 text-white py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2">
-                  {isLoading ? <Loader2 className="animate-spin" size={20} /> : (editingProductId ? t('updateItem') : t('save'))}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProductFormModal
+        isOpen={isModalOpen}
+        editingProductId={editingProductId}
+        formData={formData}
+        isLoading={isLoading}
+        onClose={handleCloseModal}
+        onSave={handleSaveProduct}
+        onFormChange={setFormData}
+        t={t}
+      />
     </div>
   );
 };

@@ -50,3 +50,8 @@ CREATE POLICY "Allow all to pantry_items" ON public.pantry_items FOR ALL USING (
 
 -- 7. Comentário de Sucesso
 -- Se você vê esta linha, o script foi formatado corretamente.
+
+-- PRODUCTION NOTE:
+-- The policies above are permissive for bootstrap/dev use only.
+-- Before production, apply secure auth.uid()-based policies from:
+-- supabase/rls_policies.sql
