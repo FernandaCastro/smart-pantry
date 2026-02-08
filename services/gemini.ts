@@ -1,22 +1,12 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Product } from "../types";
 
-// Função auxiliar para obter a chave de forma segura
-const getApiKey = () => {
-  try {
-    return typeof process !== 'undefined' ? process.env.API_KEY : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const apiKey = getApiKey();
+const apiKey = import.meta.env.VITE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey: apiKey || 'temporary-placeholder' });
 
 export const getSmartSuggestions = async (pantry: Product[]) => {
-  if (!apiKey) return "Configuração de IA pendente (API_KEY ausente).";
-  
+  if (!apiKey) return "Configuração de IA pendente (VITE_API_KEY ausente).";
+
   try {
     const productsList = pantry
       .map(p => `${p.name} (${p.currentQuantity} ${p.unit})`)

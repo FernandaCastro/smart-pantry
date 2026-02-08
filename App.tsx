@@ -36,19 +36,12 @@ import { Product, ViewType, Unit, User, Language } from './types';
 import { CATEGORIES, UNITS } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
-import { ENV_CONFIG } from './config';
+const APP_ENV = import.meta.env;
 
-const getSafeEnv = (key: string) => {
-  try {
-    return typeof process !== 'undefined' ? (process.env as any)[key] : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const SUPABASE_URL = getSafeEnv('SUPABASE_URL') || ENV_CONFIG.SUPABASE_URL;
-const SUPABASE_KEY = getSafeEnv('SUPABASE_KEY') || ENV_CONFIG.SUPABASE_KEY;
-const GOOGLE_CLIENT_ID = getSafeEnv('GOOGLE_CLIENT_ID') || ENV_CONFIG.GOOGLE_CLIENT_ID;
+const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
+const SUPABASE_KEY = APP_ENV.VITE_SUPABASE_KEY || '';
+const GOOGLE_CLIENT_ID = APP_ENV.VITE_GOOGLE_CLIENT_ID || '';
+const API_KEY = APP_ENV.VITE_API_KEY || APP_ENV.VITE_GEMINI_API_KEY || '';
 
 const IS_CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL.startsWith('http'));
 
@@ -127,6 +120,8 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
 }
 
 const App: React.FC = () => {
+  type VoiceIntent = 'consume' | 'add';
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -413,11 +408,168 @@ const App: React.FC = () => {
     setPantry([]);
   };
 
+  const normalizeProductName = (value: string) => {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const inferVoiceIntent = (args: any): VoiceIntent | null => {
+    const rawIntent = String(args?.intent || args?.action || '').toLowerCase();
+    if (['consume', 'consumir', 'consumi', 'remove', 'retirar'].includes(rawIntent)) return 'consume';
+    if (['add', 'adicionar', 'adicionei', 'inserir', 'insert'].includes(rawIntent)) return 'add';
+    return null;
+  };
+
+  const findPantryItemByName = (productName: string) => {
+    const normalizedSearch = normalizeProductName(productName);
+    const exact = pantryRef.current.find(item => normalizeProductName(item.name) === normalizedSearch);
+    if (exact) return exact;
+    return pantryRef.current.find(item => normalizeProductName(item.name).includes(normalizedSearch));
+  };
+
+  const normalizeVoiceUnit = (rawUnit: unknown): Unit => {
+    const normalized = normalizeProductName(String(rawUnit || ''));
+    const unitAliases: Record<string, Unit> = {
+      unidade: 'un',
+      unidades: 'un',
+      unit: 'un',
+      units: 'un',
+      litro: 'l',
+      litros: 'l',
+      lt: 'l',
+      kilo: 'kg',
+      kilos: 'kg',
+      quilo: 'kg',
+      quilos: 'kg',
+      grama: 'g',
+      gramas: 'g',
+      mililitro: 'ml',
+      mililitros: 'ml',
+      pack: 'pacote',
+      pacote: 'pacote',
+      pacotes: 'pacote',
+      box: 'caixa',
+      caixas: 'caixa'
+    };
+
+    const aliasMatch = unitAliases[normalized];
+    if (aliasMatch) return aliasMatch;
+
+    const validUnit = UNITS.find(unit => unit === normalized);
+    return (validUnit || 'un') as Unit;
+  };
+
+  const normalizeVoiceCategory = (rawCategory: unknown) => {
+    const normalized = normalizeProductName(String(rawCategory || ''));
+    if (!normalized) return 'outros';
+
+    const categoryAliases: Record<string, string> = {
+      cereal: 'cereais',
+      cereais: 'cereais',
+      grao: 'cereais',
+      graos: 'cereais',
+      'graos e cereais': 'cereais',
+      laticinio: 'laticinios',
+      laticinios: 'laticinios',
+      dairy: 'laticinios',
+      bebida: 'bebidas',
+      bebidas: 'bebidas',
+      drink: 'bebidas',
+      drinks: 'bebidas',
+      limpeza: 'limpeza',
+      hygiene: 'higiene',
+      higiene: 'higiene',
+      congelado: 'congelados',
+      congelados: 'congelados',
+      frozen: 'congelados',
+      outros: 'outros',
+      outro: 'outros'
+    };
+
+    if (categoryAliases[normalized]) return categoryAliases[normalized];
+
+    const validCategory = CATEGORIES.find(category => normalizeProductName(category.id) === normalized || normalizeProductName(category.name) === normalized);
+    return validCategory?.id || 'outros';
+  };
+
+  const applyVoicePantryUpdate = async (args: any) => {
+    if (!currentUser || !IS_CONFIGURED) {
+      return { status: 'error', message: 'Sessão indisponível.' };
+    }
+
+    const productName = String(args?.productName || '').trim();
+    const amount = Number(args?.amount);
+    const intent = inferVoiceIntent(args);
+    const unit = normalizeVoiceUnit(args?.unit);
+    const category = normalizeVoiceCategory(args?.category);
+
+    if (!productName || !Number.isFinite(amount) || amount <= 0 || !intent) {
+      const message = 'Comando de voz inválido.';
+      setVoiceLog(message);
+      return { status: 'error', message };
+    }
+
+    try {
+      const existingItem = findPantryItemByName(productName);
+
+      if (!existingItem && intent === 'consume') {
+        const message = t('productNotFound');
+        setVoiceLog(message);
+        return { status: 'error', message };
+      }
+
+      if (!existingItem && intent === 'add') {
+        const payload = {
+          pantry_id: currentUser.pantryId,
+          name: productName,
+          category,
+          current_quantity: amount,
+          min_quantity: 1,
+          unit,
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase.from('pantry_items').insert([payload]);
+        if (error) throw error;
+
+        await loadPantryData(currentUser.pantryId);
+        const message = t('productCreated').replace('{name}', productName);
+        setVoiceLog(message);
+        return { status: 'created', message, name: productName, quantity: amount, category, unit };
+      }
+
+      const target = existingItem as Product;
+      const newQty = intent === 'consume'
+        ? Math.max(0, target.currentQuantity - amount)
+        : target.currentQuantity + amount;
+
+      const { error } = await supabase
+        .from('pantry_items')
+        .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
+        .eq('id', target.id);
+
+      if (error) throw error;
+
+      await loadPantryData(currentUser.pantryId);
+      const message = t('quantityUpdated').replace('{name}', target.name);
+      setVoiceLog(message);
+      return { status: 'updated', message, id: target.id, quantity: newQty, category: target.category, unit: target.unit };
+    } catch (error: any) {
+      const message = `Erro ao atualizar estoque por voz: ${error.message}`;
+      setVoiceLog(message);
+      return { status: 'error', message };
+    }
+  };
+
   const startVoiceSession = async () => {
     try {
       setIsVoiceActive(true);
-      const api_key = getSafeEnv('API_KEY');
-      const ai = new GoogleGenAI({ apiKey: api_key || '' });
+      const ai = new GoogleGenAI({ apiKey: API_KEY || '' });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
@@ -428,8 +580,14 @@ const App: React.FC = () => {
         parameters: {
           type: Type.OBJECT,
           description: 'Updates the quantity of a product in the pantry.',
-          properties: { productName: { type: Type.STRING }, amount: { type: Type.NUMBER } },
-          required: ['productName', 'amount']
+          properties: {
+            intent: { type: Type.STRING, description: "Use 'consume' to decrease or 'add' to increase stock." },
+            productName: { type: Type.STRING },
+            amount: { type: Type.NUMBER, description: 'Use always a positive amount.' },
+            unit: { type: Type.STRING, description: "Optional. Infer the most likely unit (un, kg, l, g, ml, pacote, caixa)." },
+            category: { type: Type.STRING, description: 'Optional. Infer the product category when possible.' }
+          },
+          required: ['intent', 'productName', 'amount']
         }
       };
 
@@ -452,9 +610,8 @@ const App: React.FC = () => {
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
-                  const { productName, amount } = fc.args as any;
-                  setVoiceLog(`Voz: ${productName} (${amount})`);
-                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: "ok" } } }));
+                  const result = await applyVoicePantryUpdate(fc.args);
+                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: result } }));
                 }
               }
             }
@@ -476,7 +633,7 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `Você é o assistente da Despensa Inteligente.`,
+          systemInstruction: `Você é o assistente da Despensa Inteligente. Ao chamar a função updatePantryQuantity, sempre envie intent='consume' para consumo e intent='add' para adição. O amount deve ser positivo. Sempre que possível, também inferir unit e category (campos opcionais).`,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         }
       });
@@ -673,14 +830,14 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-2xl font-black text-gray-900 mb-4">Configuração Necessária</h1>
           <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-            As chaves do Supabase e do Google não foram detectadas. Certifique-se de que o arquivo <code>config.ts</code> está preenchido corretamente.
+            As chaves do Supabase e do Google não foram detectadas. Certifique-se de que o arquivo <code>.env</code> está preenchido corretamente.
           </p>
           <div className="w-full p-4 bg-gray-50 rounded-2xl text-left font-mono text-xs text-gray-400 mb-8 border border-gray-100">
-            SUPABASE_URL: {ENV_CONFIG.SUPABASE_URL ? 'OK' : 'Pendente'}<br/>
-            SUPABASE_KEY: {ENV_CONFIG.SUPABASE_KEY ? 'OK' : 'Pendente'}<br/>
-            GOOGLE_ID: {ENV_CONFIG.GOOGLE_CLIENT_ID ? 'OK' : 'Pendente'}
+            SUPABASE_URL: {SUPABASE_URL ? 'OK' : 'Pendente'}<br/>
+            SUPABASE_KEY: {SUPABASE_KEY ? 'OK' : 'Pendente'}<br/>
+            GOOGLE_ID: {GOOGLE_CLIENT_ID ? 'OK' : 'Pendente'}
           </div>
-          <p className="text-xs text-gray-400">Verifique o arquivo config.ts para continuar.</p>
+          <p className="text-xs text-gray-400">Verifique o arquivo .env para continuar.</p>
         </div>
       </div>
     );
