@@ -121,6 +121,8 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
 }
 
 const App: React.FC = () => {
+  type VoiceIntent = 'consume' | 'add';
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
