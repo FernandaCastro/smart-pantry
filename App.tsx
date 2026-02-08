@@ -275,7 +275,15 @@ const App: React.FC = () => {
       });
     } catch (err: any) {
       console.error('Google login error:', err);
-      alert("Erro Google: " + (err.message || "Erro desconhecido."));
+      const msg = err?.message || 'Erro desconhecido.';
+      if (msg.includes('Provider (issuer "https://accounts.google.com") is not enabled')) {
+        alert(
+          'Login Google não habilitado no Supabase.\n' +
+          'Acesse Authentication > Providers > Google no painel do Supabase e habilite o provider, configurando Client ID/Secret e redirect URL.'
+        );
+        return;
+      }
+      alert("Erro Google: " + msg);
     }
   };
 
