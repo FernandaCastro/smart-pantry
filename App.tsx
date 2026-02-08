@@ -36,6 +36,7 @@ import { Product, ViewType, Unit, User, Language } from './types';
 import { CATEGORIES, UNITS } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
+import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from './voiceUtils';
 const APP_ENV = import.meta.env;
 
 const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
@@ -156,6 +157,7 @@ const App: React.FC = () => {
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const voiceQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
@@ -408,95 +410,6 @@ const App: React.FC = () => {
     setPantry([]);
   };
 
-  const normalizeProductName = (value: string) => {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  const inferVoiceIntent = (args: any): VoiceIntent | null => {
-    const rawIntent = String(args?.intent || args?.action || '').toLowerCase();
-    if (['consume', 'consumir', 'consumi', 'remove', 'retirar'].includes(rawIntent)) return 'consume';
-    if (['add', 'adicionar', 'adicionei', 'inserir', 'insert'].includes(rawIntent)) return 'add';
-    return null;
-  };
-
-  const findPantryItemByName = (productName: string) => {
-    const normalizedSearch = normalizeProductName(productName);
-    const exact = pantryRef.current.find(item => normalizeProductName(item.name) === normalizedSearch);
-    if (exact) return exact;
-    return pantryRef.current.find(item => normalizeProductName(item.name).includes(normalizedSearch));
-  };
-
-  const normalizeVoiceUnit = (rawUnit: unknown): Unit => {
-    const normalized = normalizeProductName(String(rawUnit || ''));
-    const unitAliases: Record<string, Unit> = {
-      unidade: 'un',
-      unidades: 'un',
-      unit: 'un',
-      units: 'un',
-      litro: 'l',
-      litros: 'l',
-      lt: 'l',
-      kilo: 'kg',
-      kilos: 'kg',
-      quilo: 'kg',
-      quilos: 'kg',
-      grama: 'g',
-      gramas: 'g',
-      mililitro: 'ml',
-      mililitros: 'ml',
-      pack: 'pacote',
-      pacote: 'pacote',
-      pacotes: 'pacote',
-      box: 'caixa',
-      caixas: 'caixa'
-    };
-
-    const aliasMatch = unitAliases[normalized];
-    if (aliasMatch) return aliasMatch;
-
-    const validUnit = UNITS.find(unit => unit === normalized);
-    return (validUnit || 'un') as Unit;
-  };
-
-  const normalizeVoiceCategory = (rawCategory: unknown) => {
-    const normalized = normalizeProductName(String(rawCategory || ''));
-    if (!normalized) return 'outros';
-
-    const categoryAliases: Record<string, string> = {
-      cereal: 'cereais',
-      cereais: 'cereais',
-      grao: 'cereais',
-      graos: 'cereais',
-      'graos e cereais': 'cereais',
-      laticinio: 'laticinios',
-      laticinios: 'laticinios',
-      dairy: 'laticinios',
-      bebida: 'bebidas',
-      bebidas: 'bebidas',
-      drink: 'bebidas',
-      drinks: 'bebidas',
-      limpeza: 'limpeza',
-      hygiene: 'higiene',
-      higiene: 'higiene',
-      congelado: 'congelados',
-      congelados: 'congelados',
-      frozen: 'congelados',
-      outros: 'outros',
-      outro: 'outros'
-    };
-
-    if (categoryAliases[normalized]) return categoryAliases[normalized];
-
-    const validCategory = CATEGORIES.find(category => normalizeProductName(category.id) === normalized || normalizeProductName(category.name) === normalized);
-    return validCategory?.id || 'outros';
-  };
-
   const applyVoicePantryUpdate = async (args: any) => {
     if (!currentUser || !IS_CONFIGURED) {
       return { status: 'error', message: 'Sessão indisponível.' };
@@ -515,7 +428,7 @@ const App: React.FC = () => {
     }
 
     try {
-      const existingItem = findPantryItemByName(productName);
+      const existingItem = findBestPantryItemByName(pantryRef.current, productName);
 
       if (!existingItem && intent === 'consume') {
         const message = t('productNotFound');
@@ -566,6 +479,18 @@ const App: React.FC = () => {
     }
   };
 
+  const enqueueVoiceToolCall = (functionCall: any, sessionPromise: Promise<any>) => {
+    voiceQueueRef.current = voiceQueueRef.current
+      .then(async () => {
+        const result = await applyVoicePantryUpdate(functionCall.args);
+        const session = await sessionPromise;
+        session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: result } });
+      })
+      .catch((error) => {
+        console.error('Erro na fila de comandos de voz:', error);
+      });
+  };
+
   const startVoiceSession = async () => {
     try {
       setIsVoiceActive(true);
@@ -610,8 +535,7 @@ const App: React.FC = () => {
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
-                  const result = await applyVoicePantryUpdate(fc.args);
-                  sessionPromise.then(s => s.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: result } }));
+                  enqueueVoiceToolCall(fc, sessionPromise);
                 }
               }
             }
@@ -633,7 +557,7 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `Você é o assistente da Despensa Inteligente. Ao chamar a função updatePantryQuantity, sempre envie intent='consume' para consumo e intent='add' para adição. O amount deve ser positivo. Sempre que possível, também inferir unit e category (campos opcionais).`,
+          systemInstruction: `Você é o assistente da Despensa Inteligente. Ao chamar updatePantryQuantity: use intent='consume' para consumo e intent='add' para adição; amount sempre positivo; infira unit e category quando houver evidência na fala; se faltar unit/category, envie vazio; normalize para singular quando possível (ex.: 'leites' -> 'leite').`,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         }
       });
@@ -643,6 +567,7 @@ const App: React.FC = () => {
 
   const stopVoiceSession = () => {
     setIsVoiceActive(false);
+    voiceQueueRef.current = Promise.resolve();
     if (sessionRef.current) { try { sessionRef.current.close(); } catch (e) {} sessionRef.current = null; }
     if (audioContextsRef.current) {
       const { input, output } = audioContextsRef.current;
