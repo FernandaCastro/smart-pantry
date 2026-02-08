@@ -42,11 +42,11 @@ ALTER TABLE public.pantry_items ENABLE ROW LEVEL SECURITY;
 -- Nota: Para este App, estamos permitindo que o cliente gerencie seus dados.
 -- Em um ambiente de produção real, usaríamos auth.uid() para filtrar.
 
-DROP POLICY IF EXISTS "Permitir tudo para profiles" ON public.profiles;
-CREATE POLICY "Permitir tudo para profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all to profiles" ON public.profiles;
+CREATE POLICY "Allow all to profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Permitir tudo para pantry_items" ON public.pantry_items;
-CREATE POLICY "Permitir tudo para pantry_items" ON public.pantry_items FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all to pantry_items" ON public.pantry_items;
+CREATE POLICY "Allow all to pantry_items" ON public.pantry_items FOR ALL USING (true) WITH CHECK (true);
 
 -- 7. Comentário de Sucesso
 -- Se você vê esta linha, o script foi formatado corretamente.
