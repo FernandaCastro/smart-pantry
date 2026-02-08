@@ -23,8 +23,7 @@ import {
   Database,
   Copy,
   Terminal,
-  ExternalLink,
-  Github
+  ExternalLink
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -193,7 +192,7 @@ const App: React.FC = () => {
     if (savedLang) setLang(savedLang as Language);
   }, []);
 
-  // Sincroniza perfis de logins externos (Google/GitHub via Supabase)
+  // Sincroniza perfis de logins externos (Google via Supabase)
   const handleExternalProfileSync = async (userData: { email: string, name: string, id: string }) => {
     if (!IS_CONFIGURED) return;
     setIsDataLoading(true);
@@ -201,7 +200,7 @@ const App: React.FC = () => {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', userData.email)
+        .eq('id', userData.id)
         .maybeSingle();
 
       if (error) {
@@ -215,8 +214,8 @@ const App: React.FC = () => {
         const { error: insError } = await supabase
           .from('profiles')
           .insert([{ id: userData.id, email: userData.email, name: userData.name, pantry_id: pantryId }]);
-        
-        if (insError) throw insError;
+
+        if (insError && insError.code !== '23505') throw insError;
         user = { id: userData.id, email: userData.email, name: userData.name, pantryId };
       } else {
         user = { id: profile.id, email: profile.email, name: profile.name, pantryId: profile.pantry_id };
@@ -228,6 +227,7 @@ const App: React.FC = () => {
       setCurrentView('dashboard');
     } catch (err: any) {
       console.error("Erro Sync Perfil:", err);
+      alert("Erro: " + (err.message || "Erro desconhecido."));
     } finally {
       setIsDataLoading(false);
     }
@@ -256,25 +256,36 @@ const App: React.FC = () => {
   }, [currentView]);
 
   const handleGoogleResponse = async (response: any) => {
-    const payload = decodeJwt(response.credential);
-    if (!payload || !IS_CONFIGURED) return;
-    handleExternalProfileSync({
-      email: payload.email,
-      name: payload.name,
-      id: payload.sub
-    });
+    if (!response?.credential || !IS_CONFIGURED) return;
+    try {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.credential,
+      });
+      if (error) throw error;
+
+      const user = data.user;
+      if (!user) throw new Error('Não foi possível autenticar com Google.');
+
+      await handleExternalProfileSync({
+        email: user.email || '',
+        name: user.user_metadata?.full_name || user.user_metadata?.name || 'Usuário',
+        id: user.id,
+      });
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      const msg = err?.message || 'Erro desconhecido.';
+      if (msg.includes('Provider (issuer "https://accounts.google.com") is not enabled')) {
+        alert(
+          'Login Google não habilitado no Supabase.\n' +
+          'Acesse Authentication > Providers > Google no painel do Supabase e habilite o provider, configurando Client ID/Secret e redirect URL.'
+        );
+        return;
+      }
+      alert("Erro Google: " + msg);
+    }
   };
 
-  const handleGitHubLogin = async () => {
-    if (!IS_CONFIGURED) return;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
-    if (error) alert("Erro GitHub: " + error.message);
-  };
 
   const loadPantryData = async (pantryId: string) => {
     if (!pantryId || !IS_CONFIGURED) return;
@@ -325,57 +336,82 @@ const App: React.FC = () => {
     setDbTableError(null);
     
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', authEmail)
-        .maybeSingle();
-
-      if (error) {
-        if (error.code === '42P01') {
-          setDbTableError('profiles');
-          setIsDataLoading(false);
-          return;
-        }
-        throw error;
-      }
-
       if (isRegistering) {
-        if (profile) {
-          alert("Já existe uma conta com este e-mail.");
-          setIsDataLoading(false);
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: {
+            data: { full_name: authName }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        const sessionUserId = signUpData.session?.user?.id;
+        const userId = signUpData.user?.id;
+        if (!userId || !sessionUserId) {
+          alert("Conta criada. Confirme o e-mail para concluir o acesso.");
+          setIsRegistering(false);
+          setAuthPassword('');
           return;
         }
-        
-        const id = Math.random().toString(36).substr(2, 9);
+
         const pantryId = Math.random().toString(36).substr(2, 9);
         const { error: insError } = await supabase
           .from('profiles')
           .insert([{ 
-            id, 
+            id: userId,
             email: authEmail, 
             name: authName, 
-            pantry_id: pantryId,
-            password: authPassword
+            pantry_id: pantryId
           }]);
 
-        if (insError) throw insError;
+        if (insError && insError.code !== '23505') throw insError;
         
-        const user = { id, email: authEmail, name: authName, pantryId };
+        const user = { id: userId, email: authEmail, name: authName, pantryId };
         setCurrentUser(user);
         localStorage.setItem('current_user', JSON.stringify(user));
         setCurrentView('dashboard');
       } else {
-        if (!profile) {
-          alert("Conta não encontrada. Deseja criar uma?");
-          setIsRegistering(true);
-          setIsDataLoading(false);
-          return;
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword,
+        });
+
+        if (signInError) throw signInError;
+
+        const loggedUserId = signInData.user?.id;
+        if (!loggedUserId) {
+          throw new Error("Não foi possível identificar o usuário autenticado.");
         }
 
-        if (profile.password && profile.password !== authPassword) {
-          alert("Senha incorreta.");
-          setIsDataLoading(false);
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', loggedUserId)
+          .maybeSingle();
+
+        if (error) {
+          if (error.code === '42P01') {
+            setDbTableError('profiles');
+            setIsDataLoading(false);
+            return;
+          }
+          throw error;
+        }
+
+        if (!profile) {
+          const pantryId = Math.random().toString(36).substr(2, 9);
+          const nameFallback = authName || signInData.user.user_metadata?.full_name || authEmail.split('@')[0] || 'Usuário';
+          const { error: profileInsertError } = await supabase
+            .from('profiles')
+            .insert([{ id: loggedUserId, email: authEmail, name: nameFallback, pantry_id: pantryId }]);
+          if (profileInsertError && profileInsertError.code !== '23505') throw profileInsertError;
+
+          const user = { id: loggedUserId, email: authEmail, name: nameFallback, pantryId };
+          setCurrentUser(user);
+          localStorage.setItem('current_user', JSON.stringify(user));
+          setCurrentView('dashboard');
           return;
         }
 
@@ -790,14 +826,6 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <button 
-                  onClick={handleGitHubLogin}
-                  className="w-full h-[44px] bg-slate-900 text-white rounded-full flex items-center justify-center gap-3 font-bold text-sm shadow-md hover:bg-slate-800 transition-all active:scale-[0.98]"
-                >
-                  <Github size={20} />
-                  {t('loginWithGitHub')}
-                </button>
-                
                 <div className="relative flex items-center justify-center my-2">
                   <div className="border-t border-gray-200 w-full"></div>
                   <span className="bg-white px-4 text-[10px] font-black text-gray-400 uppercase absolute tracking-widest">ou use e-mail</span>
