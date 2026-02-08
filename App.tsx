@@ -201,7 +201,7 @@ const App: React.FC = () => {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', userData.email)
+        .eq('id', userData.id)
         .maybeSingle();
 
       if (error) {
@@ -215,8 +215,8 @@ const App: React.FC = () => {
         const { error: insError } = await supabase
           .from('profiles')
           .insert([{ id: userData.id, email: userData.email, name: userData.name, pantry_id: pantryId }]);
-        
-        if (insError) throw insError;
+
+        if (insError && insError.code !== '23505') throw insError;
         user = { id: userData.id, email: userData.email, name: userData.name, pantryId };
       } else {
         user = { id: profile.id, email: profile.email, name: profile.name, pantryId: profile.pantry_id };
@@ -228,6 +228,7 @@ const App: React.FC = () => {
       setCurrentView('dashboard');
     } catch (err: any) {
       console.error("Erro Sync Perfil:", err);
+      alert("Erro: " + (err.message || "Erro desconhecido."));
     } finally {
       setIsDataLoading(false);
     }
@@ -256,13 +257,26 @@ const App: React.FC = () => {
   }, [currentView]);
 
   const handleGoogleResponse = async (response: any) => {
-    const payload = decodeJwt(response.credential);
-    if (!payload || !IS_CONFIGURED) return;
-    handleExternalProfileSync({
-      email: payload.email,
-      name: payload.name,
-      id: payload.sub
-    });
+    if (!response?.credential || !IS_CONFIGURED) return;
+    try {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.credential,
+      });
+      if (error) throw error;
+
+      const user = data.user;
+      if (!user) throw new Error('Não foi possível autenticar com Google.');
+
+      await handleExternalProfileSync({
+        email: user.email || '',
+        name: user.user_metadata?.full_name || user.user_metadata?.name || 'Usuário',
+        id: user.id,
+      });
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      alert("Erro Google: " + (err.message || "Erro desconhecido."));
+    }
   };
 
   const handleGitHubLogin = async () => {
@@ -336,8 +350,9 @@ const App: React.FC = () => {
 
         if (signUpError) throw signUpError;
 
+        const sessionUserId = signUpData.session?.user?.id;
         const userId = signUpData.user?.id;
-        if (!userId) {
+        if (!userId || !sessionUserId) {
           alert("Conta criada. Confirme o e-mail para concluir o acesso.");
           setIsRegistering(false);
           setAuthPassword('');
@@ -394,7 +409,7 @@ const App: React.FC = () => {
           const { error: profileInsertError } = await supabase
             .from('profiles')
             .insert([{ id: loggedUserId, email: authEmail, name: nameFallback, pantry_id: pantryId }]);
-          if (profileInsertError) throw profileInsertError;
+          if (profileInsertError && profileInsertError.code !== '23505') throw profileInsertError;
 
           const user = { id: loggedUserId, email: authEmail, name: nameFallback, pantryId };
           setCurrentUser(user);
