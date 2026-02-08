@@ -23,8 +23,7 @@ import {
   Database,
   Copy,
   Terminal,
-  ExternalLink,
-  Github
+  ExternalLink
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -193,7 +192,7 @@ const App: React.FC = () => {
     if (savedLang) setLang(savedLang as Language);
   }, []);
 
-  // Sincroniza perfis de logins externos (Google/GitHub via Supabase)
+  // Sincroniza perfis de logins externos (Google via Supabase)
   const handleExternalProfileSync = async (userData: { email: string, name: string, id: string }) => {
     if (!IS_CONFIGURED) return;
     setIsDataLoading(true);
@@ -287,16 +286,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleGitHubLogin = async () => {
-    if (!IS_CONFIGURED) return;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
-    if (error) alert("Erro GitHub: " + error.message);
-  };
 
   const loadPantryData = async (pantryId: string) => {
     if (!pantryId || !IS_CONFIGURED) return;
@@ -837,14 +826,6 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <button 
-                  onClick={handleGitHubLogin}
-                  className="w-full h-[44px] bg-slate-900 text-white rounded-full flex items-center justify-center gap-3 font-bold text-sm shadow-md hover:bg-slate-800 transition-all active:scale-[0.98]"
-                >
-                  <Github size={20} />
-                  {t('loginWithGitHub')}
-                </button>
-                
                 <div className="relative flex items-center justify-center my-2">
                   <div className="border-t border-gray-200 w-full"></div>
                   <span className="bg-white px-4 text-[10px] font-black text-gray-400 uppercase absolute tracking-widest">ou use e-mail</span>
