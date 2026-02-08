@@ -325,57 +325,81 @@ const App: React.FC = () => {
     setDbTableError(null);
     
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('email', authEmail)
-        .maybeSingle();
-
-      if (error) {
-        if (error.code === '42P01') {
-          setDbTableError('profiles');
-          setIsDataLoading(false);
-          return;
-        }
-        throw error;
-      }
-
       if (isRegistering) {
-        if (profile) {
-          alert("Já existe uma conta com este e-mail.");
-          setIsDataLoading(false);
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: authEmail,
+          password: authPassword,
+          options: {
+            data: { full_name: authName }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        const userId = signUpData.user?.id;
+        if (!userId) {
+          alert("Conta criada. Confirme o e-mail para concluir o acesso.");
+          setIsRegistering(false);
+          setAuthPassword('');
           return;
         }
-        
-        const id = Math.random().toString(36).substr(2, 9);
+
         const pantryId = Math.random().toString(36).substr(2, 9);
         const { error: insError } = await supabase
           .from('profiles')
           .insert([{ 
-            id, 
+            id: userId,
             email: authEmail, 
             name: authName, 
-            pantry_id: pantryId,
-            password: authPassword
+            pantry_id: pantryId
           }]);
 
-        if (insError) throw insError;
+        if (insError && insError.code !== '23505') throw insError;
         
-        const user = { id, email: authEmail, name: authName, pantryId };
+        const user = { id: userId, email: authEmail, name: authName, pantryId };
         setCurrentUser(user);
         localStorage.setItem('current_user', JSON.stringify(user));
         setCurrentView('dashboard');
       } else {
-        if (!profile) {
-          alert("Conta não encontrada. Deseja criar uma?");
-          setIsRegistering(true);
-          setIsDataLoading(false);
-          return;
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: authPassword,
+        });
+
+        if (signInError) throw signInError;
+
+        const loggedUserId = signInData.user?.id;
+        if (!loggedUserId) {
+          throw new Error("Não foi possível identificar o usuário autenticado.");
         }
 
-        if (profile.password && profile.password !== authPassword) {
-          alert("Senha incorreta.");
-          setIsDataLoading(false);
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', loggedUserId)
+          .maybeSingle();
+
+        if (error) {
+          if (error.code === '42P01') {
+            setDbTableError('profiles');
+            setIsDataLoading(false);
+            return;
+          }
+          throw error;
+        }
+
+        if (!profile) {
+          const pantryId = Math.random().toString(36).substr(2, 9);
+          const nameFallback = authName || signInData.user.user_metadata?.full_name || authEmail.split('@')[0] || 'Usuário';
+          const { error: profileInsertError } = await supabase
+            .from('profiles')
+            .insert([{ id: loggedUserId, email: authEmail, name: nameFallback, pantry_id: pantryId }]);
+          if (profileInsertError) throw profileInsertError;
+
+          const user = { id: loggedUserId, email: authEmail, name: nameFallback, pantryId };
+          setCurrentUser(user);
+          localStorage.setItem('current_user', JSON.stringify(user));
+          setCurrentView('dashboard');
           return;
         }
 
