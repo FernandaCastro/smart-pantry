@@ -987,7 +987,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-              <div className="grid grid-cols-2 gap-4 lg:col-span-1">
+              <div className="grid grid-cols-2 gap-4 lg:hidden">
                 <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
                   <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
                   <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
@@ -998,7 +998,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <section className="lg:col-span-2">
+              <section className="lg:col-span-3">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><AlertCircle size={18} className="text-indigo-500" /> {t('lowStock')}</h3>
               <div className="space-y-2">
                 {pantry.length === 0 ? (
