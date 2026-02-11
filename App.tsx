@@ -985,7 +985,6 @@ const App: React.FC = () => {
                </div>
                <Sparkles className="absolute -bottom-6 -right-6 text-white/10 w-40 h-40 transform rotate-12" />
             </div>
-            </section>
 
             <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
               <div className="grid grid-cols-2 gap-4 lg:hidden">
