@@ -963,17 +963,6 @@ const App: React.FC = () => {
 
         {!isDataLoading && currentView === 'dashboard' && (
           <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
-              <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
-                <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
-                <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
-              </div>
-              <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
-                <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
-                <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-              </div>
-            </div>
-
             <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl lg:col-span-1 lg:sticky lg:top-24">
                <div className="relative z-10">
                  <h2 className="text-lg font-bold flex items-center gap-2 mb-1"><Sparkles size={18} className="text-violet-200" /> {t('aiTitle')}</h2>
@@ -984,6 +973,17 @@ const App: React.FC = () => {
                  </button>
                </div>
                <Sparkles className="absolute -bottom-6 -right-6 text-white/10 w-40 h-40 transform rotate-12" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+              <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
+                <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+              </div>
+              <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
+                <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
+              </div>
             </div>
 
             <section className="lg:col-span-2">
@@ -1140,7 +1140,7 @@ const App: React.FC = () => {
       {isVoiceActive && <VoiceAssistantOverlay voiceLog={voiceLog} onStop={stopVoiceSession} t={t} />}
 
       {!isVoiceActive && currentView === 'pantry' && (
-        <button onClick={() => setIsModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all z-40"><Plus size={24} /></button>
+        <button onClick={() => setIsModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all z-40 lg:absolute lg:bottom-6 lg:right-6"><Plus size={24} /></button>
       )}
 
       <ProductFormModal
