@@ -930,12 +930,15 @@ const App: React.FC = () => {
           })}
         </nav>
 
-        <button
-          onClick={startVoiceSession}
-          className={`w-full flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${isVoiceActive ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/30 animate-pulse' : 'bg-violet-500 text-white border-violet-500 shadow-lg shadow-violet-500/30 hover:bg-violet-600'}`}
-        >
-          <Mic size={18} /> {t('voice')}
-        </button>
+        <div className="flex justify-center">
+          <button
+            onClick={startVoiceSession}
+            aria-label={t('voice')}
+            className={`w-14 h-14 flex items-center justify-center rounded-2xl transition-all border ${isVoiceActive ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/30 animate-pulse' : 'bg-violet-500 text-white border-violet-500 shadow-lg shadow-violet-500/30 hover:bg-violet-600'}`}
+          >
+            <Mic size={20} />
+          </button>
+        </div>
 
         <div className="mt-auto space-y-3">
           <div className="bg-white rounded-2xl p-4 border border-violet-100">
@@ -1036,21 +1039,25 @@ const App: React.FC = () => {
             </div>
             <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
               {pantry.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(item => (
-                <div key={item.id} className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div key={item.id} className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-4 min-w-0">
                     <div className="text-3xl p-3 bg-gray-50 rounded-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800">{item.name}</h4>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-800 truncate">{item.name}</h4>
                       <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{item.category}</p>
                       <span className="text-[10px] font-bold text-gray-400">{item.currentQuantity}/{item.minQuantity} {item.unit}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
-                    <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="p-2 text-gray-400"><Plus size={18} /></button>
-                    <button onClick={() => handleEditClick(item)} className="p-2 text-gray-300"><Pencil size={16} /></button>
-                    <button onClick={() => handleDeleteProduct(item.id)} className="p-2 text-gray-300"><Trash2 size={16} /></button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
+                      <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="p-2 text-gray-400"><Plus size={18} /></button>
+                    </div>
+                    <div className="flex items-center gap-1 pl-1 lg:pl-2 lg:border-l border-gray-100">
+                      <button onClick={() => handleEditClick(item)} className="p-2 text-gray-300 hover:text-violet-500"><Pencil size={16} /></button>
+                      <button onClick={() => handleDeleteProduct(item.id)} className="p-2 text-gray-300 hover:text-red-400"><Trash2 size={16} /></button>
+                    </div>
                   </div>
                 </div>
               ))}
