@@ -24,7 +24,8 @@ import {
   Database,
   Copy,
   Terminal,
-  ExternalLink
+  ExternalLink,
+  Mic
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -929,6 +930,16 @@ const App: React.FC = () => {
           })}
         </nav>
 
+        <div className="flex justify-center">
+          <button
+            onClick={startVoiceSession}
+            aria-label={t('voice')}
+            className={`w-14 h-14 flex items-center justify-center rounded-2xl transition-all border ${isVoiceActive ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/30 animate-pulse' : 'bg-violet-500 text-white border-violet-500 shadow-lg shadow-violet-500/30 hover:bg-violet-600'}`}
+          >
+            <Mic size={20} />
+          </button>
+        </div>
+
         <div className="mt-auto space-y-3">
           <div className="bg-white rounded-2xl p-4 border border-violet-100">
             <p className="text-[11px] font-black uppercase tracking-wider text-violet-600">{t('totalItems')}</p>
@@ -962,9 +973,8 @@ const App: React.FC = () => {
         )}
 
         {!isDataLoading && currentView === 'dashboard' && (
-          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-          <section className="lg:col-span-2">
-            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl lg:col-span-1 lg:sticky lg:top-24">
+          <div className="space-y-6">
+            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl">
                <div className="relative z-10">
                  <h2 className="text-lg font-bold flex items-center gap-2 mb-1"><Sparkles size={18} className="text-violet-200" /> {t('aiTitle')}</h2>
                  <p className="text-violet-100 text-xs mb-4">{t('aiSub')}</p>
@@ -975,20 +985,20 @@ const App: React.FC = () => {
                </div>
                <Sparkles className="absolute -bottom-6 -right-6 text-white/10 w-40 h-40 transform rotate-12" />
             </div>
-            </section>
 
-            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
-              <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
-                <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
-                <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+            <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+              <div className="grid grid-cols-2 gap-4 lg:hidden">
+                <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
+                  <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                  <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+                </div>
+                <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
+                  <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                  <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
+                </div>
               </div>
-              <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
-                <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
-                <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-              </div>
-            </div>
 
-            <section className="lg:col-span-2">
+              <section className="lg:col-span-3">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><AlertCircle size={18} className="text-indigo-500" /> {t('lowStock')}</h3>
               <div className="space-y-2">
                 {pantry.length === 0 ? (
@@ -1017,31 +1027,39 @@ const App: React.FC = () => {
               </div>
             </section>
           </div>
+          </div>
         )}
 
         {!isDataLoading && currentView === 'pantry' && (
           <div className="space-y-4 lg:space-y-6">
-            <div className="relative lg:max-w-2xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input type="text" placeholder={t('searchPlaceholder')} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            <div className="flex items-center gap-3 lg:max-w-2xl">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input type="text" placeholder={t('searchPlaceholder')} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              </div>
+              <button onClick={() => setIsModalOpen(true)} className="w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all"><Plus size={24} /></button>
             </div>
             <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
               {pantry.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(item => (
-                <div key={item.id} className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div key={item.id} className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm">
+                  <div className="flex items-start gap-4">
                     <div className="text-3xl p-3 bg-gray-50 rounded-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-800">{item.name}</h4>
-                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{item.category}</p>
-                      <span className="text-[10px] font-bold text-gray-400">{item.currentQuantity}/{item.minQuantity} {item.unit}</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-800 text-left truncate">{item.name}</h4>
+                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest text-left">{item.category}</p>
+                      <span className="text-[10px] font-bold text-gray-400 text-left block">{item.currentQuantity}/{item.minQuantity} {item.unit}</span>
+                      <div className="mt-1 flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
+                          <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
+                          <button onClick={() => updateQuantity(item.id, 1)} className="p-2 text-gray-400"><Plus size={18} /></button>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleEditClick(item)} className="p-1.5 text-gray-300 hover:text-violet-500"><Pencil size={16} /></button>
+                          <button onClick={() => handleDeleteProduct(item.id)} className="p-1.5 text-gray-300 hover:text-red-400"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
-                    <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="p-2 text-gray-400"><Plus size={18} /></button>
-                    <button onClick={() => handleEditClick(item)} className="p-2 text-gray-300"><Pencil size={16} /></button>
-                    <button onClick={() => handleDeleteProduct(item.id)} className="p-2 text-gray-300"><Trash2 size={16} /></button>
                   </div>
                 </div>
               ))}
@@ -1140,10 +1158,6 @@ const App: React.FC = () => {
       />
 
       {isVoiceActive && <VoiceAssistantOverlay voiceLog={voiceLog} onStop={stopVoiceSession} t={t} />}
-
-      {!isVoiceActive && currentView === 'pantry' && (
-        <button onClick={() => setIsModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all z-40 lg:absolute lg:bottom-6 lg:right-6"><Plus size={24} /></button>
-      )}
 
       <ProductFormModal
         isOpen={isModalOpen}
