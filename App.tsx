@@ -973,8 +973,8 @@ const App: React.FC = () => {
         )}
 
         {!isDataLoading && currentView === 'dashboard' && (
-          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl lg:col-span-1 lg:sticky lg:top-24">
+          <div className="space-y-6">
+            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl">
                <div className="relative z-10">
                  <h2 className="text-lg font-bold flex items-center gap-2 mb-1"><Sparkles size={18} className="text-violet-200" /> {t('aiTitle')}</h2>
                  <p className="text-violet-100 text-xs mb-4">{t('aiSub')}</p>
@@ -986,18 +986,19 @@ const App: React.FC = () => {
                <Sparkles className="absolute -bottom-6 -right-6 text-white/10 w-40 h-40 transform rotate-12" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
-              <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
-                <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
-                <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+            <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+              <div className="grid grid-cols-2 gap-4 lg:col-span-1">
+                <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
+                  <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                  <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+                </div>
+                <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
+                  <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                  <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
+                </div>
               </div>
-              <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
-                <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
-                <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-              </div>
-            </div>
 
-            <section className="lg:col-span-2">
+              <section className="lg:col-span-2">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><AlertCircle size={18} className="text-indigo-500" /> {t('lowStock')}</h3>
               <div className="space-y-2">
                 {pantry.length === 0 ? (
@@ -1025,6 +1026,7 @@ const App: React.FC = () => {
                 )}
               </div>
             </section>
+          </div>
           </div>
         )}
 
