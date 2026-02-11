@@ -1046,16 +1046,22 @@ const App: React.FC = () => {
                       <h4 className="font-bold text-gray-800">{item.name}</h4>
                       <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{item.category}</p>
                       <span className="text-[10px] font-bold text-gray-400">{item.currentQuantity}/{item.minQuantity} {item.unit}</span>
-                      <div className="flex items-center gap-1 mt-1">
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
+                      <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="p-2 text-gray-400"><Plus size={18} /></button>
+                      <div className="flex items-center gap-1 lg:hidden">
                         <button onClick={() => handleEditClick(item)} className="p-1.5 text-gray-300 hover:text-violet-500"><Pencil size={16} /></button>
                         <button onClick={() => handleDeleteProduct(item.id)} className="p-1.5 text-gray-300 hover:text-red-400"><Trash2 size={16} /></button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
-                    <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="p-2 text-gray-400"><Plus size={18} /></button>
+                    <div className="hidden lg:flex items-center gap-1">
+                      <button onClick={() => handleEditClick(item)} className="p-1.5 text-gray-300 hover:text-violet-500"><Pencil size={16} /></button>
+                      <button onClick={() => handleDeleteProduct(item.id)} className="p-1.5 text-gray-300 hover:text-red-400"><Trash2 size={16} /></button>
+                    </div>
                   </div>
                 </div>
               ))}
