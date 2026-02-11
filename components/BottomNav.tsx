@@ -12,7 +12,7 @@ interface BottomNavProps {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentView, setCurrentView, onVoiceToggle, isVoiceActive, t }) => {
   return (
-    <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-lg bg-white/90 backdrop-blur-xl border-t border-gray-100 flex justify-around p-3 z-50 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.3)]">
+    <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-lg bg-white/90 backdrop-blur-xl border-t border-gray-100 flex justify-around p-3 z-50 shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.3)] lg:hidden">
       <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center flex-1 transition-all ${currentView === 'dashboard' ? 'text-violet-600 scale-110' : 'text-gray-300'}`}><LayoutDashboard size={24} /><span className="text-[10px] font-bold mt-1 uppercase">{t('dashboard')}</span></button>
       <button onClick={() => setCurrentView('pantry')} className={`flex flex-col items-center flex-1 transition-all ${currentView === 'pantry' ? 'text-violet-600 scale-110' : 'text-gray-300'}`}><Package size={24} /><span className="text-[10px] font-bold mt-1 uppercase">{t('pantry')}</span></button>
       <div className="flex items-center justify-center -mt-8">
