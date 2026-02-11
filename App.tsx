@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Package, 
+  LayoutDashboard,
   Plus, 
   Minus, 
   Trash2, 
@@ -895,8 +896,53 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-24 max-w-lg mx-auto bg-white shadow-2xl relative">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 p-4 flex justify-between items-center">
+    <div className="min-h-screen bg-slate-100 lg:p-6">
+      <div className="mx-auto flex min-h-screen max-w-6xl bg-white shadow-2xl relative lg:min-h-[calc(100vh-3rem)] lg:rounded-[2rem] lg:border lg:border-slate-200 lg:overflow-hidden">
+      <aside className="hidden lg:flex w-72 border-r border-gray-100 bg-gradient-to-b from-violet-50 to-white p-6 flex-col gap-8">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2 bg-violet-500 rounded-xl text-white"><Package size={20} /></div>
+            <h2 className="font-black text-lg text-violet-900">Smart Pantry</h2>
+          </div>
+          <p className="text-sm text-violet-600/70">Controle inteligente da despensa</p>
+        </div>
+
+        <nav className="space-y-2">
+          {[
+            { id: 'dashboard' as ViewType, label: t('dashboard'), icon: LayoutDashboard },
+            { id: 'pantry' as ViewType, label: t('pantry'), icon: Package },
+            { id: 'shopping' as ViewType, label: t('shopping'), icon: CheckCircle2 },
+            { id: 'ai' as ViewType, label: t('ai'), icon: Sparkles },
+            { id: 'settings' as ViewType, label: t('settings'), icon: Settings }
+          ].map(item => {
+            const Icon = item.icon;
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentView(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${isActive ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' : 'text-slate-500 hover:bg-white hover:text-violet-600'}`}
+              >
+                <Icon size={18} /> {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto space-y-3">
+          <div className="bg-white rounded-2xl p-4 border border-violet-100">
+            <p className="text-[11px] font-black uppercase tracking-wider text-violet-600">{t('totalItems')}</p>
+            <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-indigo-100">
+            <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600">{t('missingItems')}</p>
+            <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex flex-col min-h-screen pb-24 lg:pb-0 lg:min-h-0 flex-1 relative">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 p-4 lg:px-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-violet-100 rounded-xl text-violet-600"><Package size={20} /></div>
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
@@ -907,7 +953,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 p-4 overflow-y-auto">
+      <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
         {isDataLoading && (
           <div className="flex flex-col items-center justify-center py-20 text-violet-400 animate-pulse">
             <Loader2 className="animate-spin mb-4" size={40} />
@@ -916,19 +962,9 @@ const App: React.FC = () => {
         )}
 
         {!isDataLoading && currentView === 'dashboard' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
-                <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
-                <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
-              </div>
-              <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
-                <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
-                <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl">
+          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
+          <section className="lg:col-span-2">
+            <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-[2rem] p-6 text-white relative overflow-hidden shadow-xl lg:col-span-1 lg:sticky lg:top-24">
                <div className="relative z-10">
                  <h2 className="text-lg font-bold flex items-center gap-2 mb-1"><Sparkles size={18} className="text-violet-200" /> {t('aiTitle')}</h2>
                  <p className="text-violet-100 text-xs mb-4">{t('aiSub')}</p>
@@ -939,8 +975,20 @@ const App: React.FC = () => {
                </div>
                <Sparkles className="absolute -bottom-6 -right-6 text-white/10 w-40 h-40 transform rotate-12" />
             </div>
+            </section>
 
-            <section>
+            <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+              <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
+                <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
+              </div>
+              <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
+                <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
+              </div>
+            </div>
+
+            <section className="lg:col-span-2">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><AlertCircle size={18} className="text-indigo-500" /> {t('lowStock')}</h3>
               <div className="space-y-2">
                 {pantry.length === 0 ? (
@@ -972,12 +1020,12 @@ const App: React.FC = () => {
         )}
 
         {!isDataLoading && currentView === 'pantry' && (
-          <div className="space-y-4">
-            <div className="relative">
+          <div className="space-y-4 lg:space-y-6">
+            <div className="relative lg:max-w-2xl">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input type="text" placeholder={t('searchPlaceholder')} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
               {pantry.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(item => (
                 <div key={item.id} className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -1002,8 +1050,9 @@ const App: React.FC = () => {
         )}
 
         {currentView === 'shopping' && (
-          <div className="space-y-4 pb-32">
+          <div className="space-y-4 pb-32 lg:pb-8">
             <h2 className="text-2xl font-black text-gray-900">{t('shopping')}</h2>
+            <div className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
             {shoppingList.map(item => (
               <div key={item.id} className={`bg-white border-2 p-4 rounded-3xl flex flex-col gap-4 ${selectedShopItems[item.id] ? 'border-violet-500 bg-violet-50/30' : 'border-gray-50'}`}>
                 <div className="flex items-center gap-4">
@@ -1026,8 +1075,9 @@ const App: React.FC = () => {
                 )}
               </div>
             ))}
+            </div>
             {Object.values(selectedShopItems).some(v => v) && (
-              <div className="fixed bottom-24 left-4 right-4 z-[60]">
+              <div className="fixed bottom-24 left-4 right-4 z-[60] lg:static lg:bottom-auto lg:left-auto lg:right-auto lg:mt-2 lg:max-w-sm lg:ml-auto">
                 <button onClick={handleFinishPurchase} disabled={isLoading} className="w-full bg-violet-600 text-white py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-3">
                   {isLoading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
                   {t('finishPurchase')}
@@ -1092,7 +1142,7 @@ const App: React.FC = () => {
       {isVoiceActive && <VoiceAssistantOverlay voiceLog={voiceLog} onStop={stopVoiceSession} t={t} />}
 
       {!isVoiceActive && currentView === 'pantry' && (
-        <button onClick={() => setIsModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all z-40"><Plus size={24} /></button>
+        <button onClick={() => setIsModalOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl shadow-lg border border-violet-200 flex items-center justify-center active:scale-90 transition-all z-40 lg:absolute lg:bottom-6 lg:right-6"><Plus size={24} /></button>
       )}
 
       <ProductFormModal
@@ -1105,6 +1155,8 @@ const App: React.FC = () => {
         onFormChange={setFormData}
         t={t}
       />
+      </div>
+      </div>
     </div>
   );
 };
