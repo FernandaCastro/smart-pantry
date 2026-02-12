@@ -142,7 +142,7 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
           </div>
         </aside>
 
-        <div className="flex flex-col min-h-screen pb-24 lg:pb-0 lg:min-h-0 flex-1 relative">
+        <div className="flex flex-col h-screen lg:h-auto lg:min-h-0 flex-1 relative overflow-hidden pb-24 lg:pb-0">
           <MainHeader
             currentView={currentView}
             lang={lang}
@@ -153,7 +153,7 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
             onToggleTheme={onToggleTheme}
           />
 
-          <main className="flex-1 p-4 lg:p-6 overflow-y-auto">
+          <main className="flex-1 min-h-0 p-4 lg:p-6 overflow-y-auto">
             {isDataLoading && (
               <div className="flex flex-col items-center justify-center py-20 text-[var(--sp-violet-400)] animate-pulse">
                 <Loader2 className="animate-spin mb-4" size={40} />
