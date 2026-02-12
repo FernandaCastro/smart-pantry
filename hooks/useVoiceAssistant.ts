@@ -45,9 +45,42 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
   const [voiceLog, setVoiceLog] = useState('');
   const sessionRef = useRef<any>(null);
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const inputSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const inputProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const isListeningRef = useRef(false);
+  const hasDetectedFirstRequestRef = useRef(false);
+  const autoCloseFallbackRef = useRef<number | null>(null);
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const voiceQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const clearAutoCloseFallback = useCallback(() => {
+    if (autoCloseFallbackRef.current !== null) {
+      window.clearTimeout(autoCloseFallbackRef.current);
+      autoCloseFallbackRef.current = null;
+    }
+  }, []);
+
+  const stopListeningInput = useCallback(() => {
+    isListeningRef.current = false;
+
+    if (inputProcessorRef.current) {
+      inputProcessorRef.current.disconnect();
+      inputProcessorRef.current.onaudioprocess = null;
+      inputProcessorRef.current = null;
+    }
+
+    if (inputSourceRef.current) {
+      inputSourceRef.current.disconnect();
+      inputSourceRef.current = null;
+    }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  }, []);
 
   const applyVoicePantryUpdate = useCallback(async (args: any) => {
     if (!currentUser || !isConfigured) {
@@ -131,9 +164,16 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
     }
   }, [currentUser, isConfigured, pantryRef, t, supabase, loadPantryData]);
 
-  const stopVoiceSession = useCallback(() => {
+  const stopVoiceSession = useCallback((options?: { clearLog?: boolean }) => {
     setIsVoiceActive(false);
+    if (options?.clearLog) {
+      setVoiceLog('');
+    }
+
+    clearAutoCloseFallback();
+    stopListeningInput();
     voiceQueueRef.current = Promise.resolve();
+    hasDetectedFirstRequestRef.current = false;
 
     if (sessionRef.current) {
       try {
@@ -159,7 +199,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
       if (output.state !== 'closed') output.close().catch(() => {});
       audioContextsRef.current = null;
     }
-  }, []);
+  }, [clearAutoCloseFallback, stopListeningInput]);
 
   const enqueueVoiceToolCall = useCallback((functionCall: any, sessionPromise: Promise<any>) => {
     voiceQueueRef.current = voiceQueueRef.current
@@ -178,11 +218,15 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
 
     try {
       setIsVoiceActive(true);
+      setVoiceLog('');
+      hasDetectedFirstRequestRef.current = false;
       const ai = new GoogleGenAI({ apiKey: API_KEY || '' });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      isListeningRef.current = true;
 
       const updateStockTool = {
         name: 'updatePantryQuantity',
@@ -209,7 +253,10 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
           onopen: () => {
             const source = inputCtx.createMediaStreamSource(stream);
             const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            inputSourceRef.current = source;
+            inputProcessorRef.current = scriptProcessor;
             scriptProcessor.onaudioprocess = (e) => {
+              if (!isListeningRef.current) return;
               const inputData = e.inputBuffer.getChannelData(0);
               const int16 = new Int16Array(inputData.length);
               for (let i = 0; i < inputData.length; i++) int16[i] = inputData[i] * 32768;
@@ -222,6 +269,14 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
+                  if (!hasDetectedFirstRequestRef.current) {
+                    hasDetectedFirstRequestRef.current = true;
+                    stopListeningInput();
+                    clearAutoCloseFallback();
+                    autoCloseFallbackRef.current = window.setTimeout(() => {
+                      stopVoiceSession({ clearLog: true });
+                    }, 10000);
+                  }
                   enqueueVoiceToolCall(fc, sessionPromise);
                 }
               }
@@ -236,6 +291,13 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
               source.start(nextStartTimeRef.current);
               nextStartTimeRef.current += buffer.duration;
               sourcesRef.current.add(source);
+              source.onended = () => {
+                sourcesRef.current.delete(source);
+                if (hasDetectedFirstRequestRef.current && sourcesRef.current.size === 0) {
+                  clearAutoCloseFallback();
+                  stopVoiceSession({ clearLog: true });
+                }
+              };
             }
           },
           onclose: () => stopVoiceSession(),
