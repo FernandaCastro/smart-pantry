@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from '../.tmp/voiceUtils.bundle.mjs';
 
 const pantry = [
-  { id: '1', name: 'Leite Integral', category: 'laticinios', currentQuantity: 2, minQuantity: 1, unit: 'l', updatedAt: Date.now() },
-  { id: '2', name: 'Arroz Branco', category: 'cereais', currentQuantity: 1, minQuantity: 1, unit: 'kg', updatedAt: Date.now() },
-  { id: '3', name: 'Detergente Neutro', category: 'limpeza', currentQuantity: 1, minQuantity: 1, unit: 'un', updatedAt: Date.now() }
+  { id: '1', name: 'Leite Integral', category: 'dairy', currentQuantity: 2, minQuantity: 1, unit: 'l', updatedAt: Date.now() },
+  { id: '2', name: 'Arroz Branco', category: 'cereals_grains', currentQuantity: 1, minQuantity: 1, unit: 'kg', updatedAt: Date.now() },
+  { id: '3', name: 'Detergente Neutro', category: 'cleaning', currentQuantity: 1, minQuantity: 1, unit: 'un', updatedAt: Date.now() }
 ];
 
 test('findBestPantryItemByName finds accents/plural variations', () => {
@@ -30,6 +30,8 @@ test('inferVoiceIntent handles pt/en aliases', () => {
 test('normalizeVoiceUnit and normalizeVoiceCategory map aliases safely', () => {
   assert.equal(normalizeVoiceUnit('litros'), 'l');
   assert.equal(normalizeVoiceUnit('boxes'), 'un');
-  assert.equal(normalizeVoiceCategory('laticínios'), 'laticinios');
-  assert.equal(normalizeVoiceCategory(undefined), 'outros');
+  assert.equal(normalizeVoiceCategory('laticínios'), 'dairy');
+  assert.equal(normalizeVoiceCategory('Frutas e Legumes'), 'fruits_vegetables');
+  assert.equal(normalizeVoiceCategory('doces'), 'sweets_savory_snacks');
+  assert.equal(normalizeVoiceCategory(undefined), 'others');
 });

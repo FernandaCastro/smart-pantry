@@ -60,7 +60,7 @@ export const categorizeProduct = async (productName: string) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Categorize o produto "${productName}" em uma destas categorias: Cereais & Grãos, Laticínios, Limpeza, Higiene, Bebidas, Congelados ou Outros. Responda apenas o nome da categoria.`,
+      contents: `Categorize o produto "${productName}" em uma destas categorias: Cereais & Grãos, Frutas e Legumes, Enlatados, Carnes e Peixes, Padaria, Culinária e Confeitaria, Doces e Salgados, Laticínios, Limpeza, Higiene, Bebidas, Congelados ou Outros. Responda apenas o nome da categoria.`,
     });
     return response.text?.trim() || 'Outros';
   } catch (error) {
