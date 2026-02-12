@@ -90,35 +90,57 @@ export const normalizeVoiceUnit = (rawUnit: unknown): Unit => {
 
 export const normalizeVoiceCategory = (rawCategory: unknown) => {
   const normalized = normalizeText(String(rawCategory || ''));
-  if (!normalized) return 'outros';
+  if (!normalized) return 'others';
 
   const categoryAliases: Record<string, string> = {
-    cereal: 'cereais',
-    cereais: 'cereais',
-    grao: 'cereais',
-    graos: 'cereais',
-    'graos e cereais': 'cereais',
-    laticinio: 'laticinios',
-    laticinios: 'laticinios',
-    dairy: 'laticinios',
-    bebida: 'bebidas',
-    bebidas: 'bebidas',
-    drink: 'bebidas',
-    drinks: 'bebidas',
-    limpeza: 'limpeza',
-    hygiene: 'higiene',
-    higiene: 'higiene',
-    congelado: 'congelados',
-    congelados: 'congelados',
-    frozen: 'congelados',
-    outros: 'outros',
-    outro: 'outros'
+    cereal: 'cereals_grains',
+    cereais: 'cereals_grains',
+    grao: 'cereals_grains',
+    graos: 'cereals_grains',
+    'graos e cereais': 'cereals_grains',
+    fruta: 'fruits_vegetables',
+    frutas: 'fruits_vegetables',
+    legume: 'fruits_vegetables',
+    legumes: 'fruits_vegetables',
+    'frutas e legumes': 'fruits_vegetables',
+    enlatado: 'canned_goods',
+    enlatados: 'canned_goods',
+    carne: 'meat_fish',
+    carnes: 'meat_fish',
+    peixe: 'meat_fish',
+    peixes: 'meat_fish',
+    'carnes e peixes': 'meat_fish',
+    padaria: 'bakery',
+    bakery: 'bakery',
+    culinaria: 'cooking_baking',
+    confeitaria: 'cooking_baking',
+    'culinaria e confeitaria': 'cooking_baking',
+    doce: 'sweets_savory_snacks',
+    doces: 'sweets_savory_snacks',
+    salgado: 'sweets_savory_snacks',
+    salgados: 'sweets_savory_snacks',
+    'doces e salgados': 'sweets_savory_snacks',
+    laticinio: 'dairy',
+    laticinios: 'dairy',
+    dairy: 'dairy',
+    bebida: 'beverages',
+    bebidas: 'beverages',
+    drink: 'beverages',
+    drinks: 'beverages',
+    limpeza: 'cleaning',
+    hygiene: 'hygiene',
+    higiene: 'hygiene',
+    congelado: 'frozen',
+    congelados: 'frozen',
+    frozen: 'frozen',
+    outros: 'others',
+    outro: 'others'
   };
 
   if (categoryAliases[normalized]) return categoryAliases[normalized];
 
   const validCategory = CATEGORIES.find(category => normalizeText(category.id) === normalized || normalizeText(category.name) === normalized);
-  return validCategory?.id || 'outros';
+  return validCategory?.id || 'others';
 };
 
 export const findBestPantryItemByName = (items: Product[], productName: string) => {

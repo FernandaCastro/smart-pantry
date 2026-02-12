@@ -144,7 +144,7 @@ const App: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    category: 'outros',
+    category: 'others',
     currentQuantity: 0,
     minQuantity: 1,
     unit: 'un' as Unit
@@ -312,7 +312,7 @@ const App: React.FC = () => {
         setPantry(data.map(item => ({
           id: item.id,
           name: item.name,
-          category: item.category || 'outros',
+          category: item.category || 'others',
           currentQuantity: Number(item.current_quantity) || 0,
           minQuantity: Number(item.min_quantity) || 0,
           unit: normalizeStoredUnit(item.unit),
@@ -716,7 +716,7 @@ Ao chamar updatePantryQuantity:
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingProductId(null);
-    setFormData({ name: '', category: 'outros', currentQuantity: 0, minQuantity: 1, unit: 'un' });
+    setFormData({ name: '', category: 'others', currentQuantity: 0, minQuantity: 1, unit: 'un' });
   };
 
   const handleFetchAiSuggestions = async () => {

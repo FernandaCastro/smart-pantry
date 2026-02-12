@@ -1,35 +1,53 @@
 import { Category, Language, Unit } from './types';
 
 export const CATEGORIES: Category[] = [
-  { id: 'cereais', name: 'Cereais & Grãos', icon: '🌾' },
-  { id: 'laticinios', name: 'Laticínios', icon: '🥛' },
-  { id: 'limpeza', name: 'Limpeza', icon: '🧼' },
-  { id: 'higiene', name: 'Higiene', icon: '🪥' },
-  { id: 'bebidas', name: 'Bebidas', icon: '🥤' },
-  { id: 'congelados', name: 'Congelados', icon: '❄️' },
-  { id: 'outros', name: 'Outros', icon: '📦' },
+  { id: 'cereals_grains', name: 'Cereais & Grãos', icon: '🌾' },
+  { id: 'fruits_vegetables', name: 'Frutas e Legumes', icon: '🥦' },
+  { id: 'canned_goods', name: 'Enlatados', icon: '🥫' },
+  { id: 'meat_fish', name: 'Carnes e Peixes', icon: '🥩' },
+  { id: 'bakery', name: 'Padaria', icon: '🥖' },
+  { id: 'cooking_baking', name: 'Culinária e Confeitaria', icon: '🧁' },
+  { id: 'sweets_savory_snacks', name: 'Doces e Salgados', icon: '🍫' },
+  { id: 'dairy', name: 'Laticínios', icon: '🥛' },
+  { id: 'cleaning', name: 'Limpeza', icon: '🧼' },
+  { id: 'hygiene', name: 'Higiene', icon: '🪥' },
+  { id: 'beverages', name: 'Bebidas', icon: '🥤' },
+  { id: 'frozen', name: 'Congelados', icon: '❄️' },
+  { id: 'others', name: 'Outros', icon: '📦' },
 ];
 
 export const UNITS: Unit[] = ['un', 'kg', 'l', 'g', 'ml', 'package', 'box'];
 
 const CATEGORY_LABELS: Record<Language, Record<string, string>> = {
   pt: {
-    cereais: 'Cereais & Grãos',
-    laticinios: 'Laticínios',
-    limpeza: 'Limpeza',
-    higiene: 'Higiene',
-    bebidas: 'Bebidas',
-    congelados: 'Congelados',
-    outros: 'Outros',
+    cereals_grains: 'Cereais & Grãos',
+    fruits_vegetables: 'Frutas e Legumes',
+    canned_goods: 'Enlatados',
+    meat_fish: 'Carnes e Peixes',
+    bakery: 'Padaria',
+    cooking_baking: 'Culinária e Confeitaria',
+    sweets_savory_snacks: 'Doces e Salgados',
+    dairy: 'Laticínios',
+    cleaning: 'Limpeza',
+    hygiene: 'Higiene',
+    beverages: 'Bebidas',
+    frozen: 'Congelados',
+    others: 'Outros',
   },
   en: {
-    cereais: 'Cereals & Grains',
-    laticinios: 'Dairy',
-    limpeza: 'Cleaning',
-    higiene: 'Hygiene',
-    bebidas: 'Beverages',
-    congelados: 'Frozen',
-    outros: 'Others',
+    cereals_grains: 'Cereals & Grains',
+    fruits_vegetables: 'Fruits & Vegetables',
+    canned_goods: 'Canned Goods',
+    meat_fish: 'Meat & Fish',
+    bakery: 'Bakery',
+    cooking_baking: 'Cooking & Baking',
+    sweets_savory_snacks: 'Sweets & Savory Snacks',
+    dairy: 'Dairy',
+    cleaning: 'Cleaning',
+    hygiene: 'Hygiene',
+    beverages: 'Beverages',
+    frozen: 'Frozen',
+    others: 'Others',
   },
 };
 
@@ -64,7 +82,7 @@ export const normalizeUnitId = (rawUnit: unknown): Unit => {
 };
 
 export const getCategoryLabel = (categoryId: string, lang: Language) => {
-  return CATEGORY_LABELS[lang][categoryId] || CATEGORY_LABELS[lang].outros;
+  return CATEGORY_LABELS[lang][categoryId] || CATEGORY_LABELS[lang].others;
 };
 
 export const getUnitLabel = (unit: unknown, lang: Language) => {
