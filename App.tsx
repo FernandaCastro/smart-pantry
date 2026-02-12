@@ -737,6 +737,16 @@ Ao chamar updatePantryQuantity:
       .map(p => ({ ...p, neededQuantity: Math.max(0, p.minQuantity - p.currentQuantity) }));
   }, [pantry]);
 
+  const viewHeaderIconMap: Partial<Record<ViewType, React.ComponentType<{ size?: number; className?: string }>>> = {
+    dashboard: LayoutDashboard,
+    pantry: Package,
+    shopping: ShoppingBasket,
+    ai: Sparkles,
+    settings: Settings
+  };
+
+  const HeaderIcon = viewHeaderIconMap[currentView] || Package;
+
   const shoppingListByCategory = useMemo(() => {
     const grouped = shoppingList.reduce<Record<string, typeof shoppingList>>((acc, item) => {
       const categoryId = item.category || 'others';
@@ -1011,7 +1021,7 @@ Ao chamar updatePantryQuantity:
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 p-4 lg:px-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
-            {currentView === 'shopping' ? <ShoppingBasket size={20} /> : <Package size={20} />}
+            <HeaderIcon size={20} />
           </div>
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
         </div>
