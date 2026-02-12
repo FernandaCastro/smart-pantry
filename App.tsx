@@ -25,7 +25,8 @@ import {
   Copy,
   Terminal,
   ExternalLink,
-  Mic
+  Mic,
+  ShoppingBasket
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -960,7 +961,7 @@ Ao chamar updatePantryQuantity:
           {[
             { id: 'dashboard' as ViewType, label: t('dashboard'), icon: LayoutDashboard },
             { id: 'pantry' as ViewType, label: t('pantry'), icon: Package },
-            { id: 'shopping' as ViewType, label: t('shopping'), icon: CheckCircle2 },
+            { id: 'shopping' as ViewType, label: t('shopping'), icon: ShoppingBasket },
             { id: 'ai' as ViewType, label: t('ai'), icon: Sparkles },
             { id: 'settings' as ViewType, label: t('settings'), icon: Settings }
           ].map(item => {
