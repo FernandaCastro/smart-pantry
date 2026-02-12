@@ -14,6 +14,7 @@ import { MissingConfigScreen } from './components/screens/MissingConfigScreen';
 import { AuthScreen } from './components/screens/AuthScreen';
 import { MainAppLayout } from './components/screens/MainAppLayout';
 import { ProductFormData, useProductActions } from './hooks/useProductActions';
+import { useAuthentication } from './hooks/useAuthentication';
 const APP_ENV = import.meta.env;
 
 const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
@@ -78,11 +79,6 @@ const App: React.FC = () => {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<ThemeMode>('light');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [pantry, setPantry] = useState<Product[]>([]);
   const pantryRef = useRef<Product[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>('auth');
@@ -111,33 +107,6 @@ const App: React.FC = () => {
   const t = (key: TranslationKey) => translations[lang][key];
 
   useEffect(() => {
-    const checkSession = async () => {
-      // 1. Verificar se há usuário local
-      const savedUser = localStorage.getItem('current_user');
-      if (savedUser) {
-        try {
-          const user = JSON.parse(savedUser);
-          setCurrentUser(user);
-          setCurrentView('dashboard');
-          loadPantryData(user.pantryId);
-          return;
-        } catch (e) { localStorage.removeItem('current_user'); }
-      }
-
-      // 2. Verificar se retornou de um login OAuth (Supabase)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { email, user_metadata, id } = session.user;
-        handleExternalProfileSync({
-          email: email || '',
-          name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
-          id: id
-        });
-      }
-    };
-    
-    checkSession();
-    
     const savedLang = localStorage.getItem('app_lang');
     if (savedLang) setLang(savedLang as Language);
 
@@ -147,225 +116,20 @@ const App: React.FC = () => {
     }
   }, []);
 
+
   useEffect(() => {
     document.body.classList.toggle('theme-dark', theme === 'dark');
     localStorage.setItem('app_theme', theme);
   }, [theme]);
 
-  // Sincroniza perfis de logins externos (Google via Supabase)
-  const handleExternalProfileSync = async (userData: { email: string, name: string, id: string }) => {
-    if (!IS_CONFIGURED) return;
-    setIsDataLoading(true);
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userData.id)
-        .maybeSingle();
 
-      if (error) {
-        if (error.code === '42P01') { setDbTableError('profiles'); return; }
-        throw error;
-      }
 
-      let user: User;
-      if (!profile) {
-        const pantryId = Math.random().toString(36).substr(2, 9);
-        const { error: insError } = await supabase
-          .from('profiles')
-          .insert([{ id: userData.id, email: userData.email, name: userData.name, pantry_id: pantryId }]);
-
-        if (insError && insError.code !== '23505') throw insError;
-        user = { id: userData.id, email: userData.email, name: userData.name, pantryId };
-      } else {
-        user = { id: profile.id, email: profile.email, name: profile.name, pantryId: profile.pantry_id };
-      }
-
-      setCurrentUser(user);
-      localStorage.setItem('current_user', JSON.stringify(user));
-      await loadPantryData(user.pantryId);
-      setCurrentView('dashboard');
-    } catch (err: any) {
-      console.error("Erro Sync Perfil:", err);
-      alert("Erro: " + (err.message || "Erro desconhecido."));
-    } finally {
-      setIsDataLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (currentView === 'auth') {
-      const initGoogle = () => {
-        const google = (window as any).google;
-        if (google && GOOGLE_CLIENT_ID) {
-          try {
-            google.accounts.id.initialize({
-              client_id: GOOGLE_CLIENT_ID,
-              callback: handleGoogleResponse,
-              auto_select: false,
-            });
-            const btn = document.getElementById("googleBtn");
-            if (btn) google.accounts.id.renderButton(btn, { theme: "outline", size: "large", width: "100%", shape: "pill" });
-          } catch (err) { console.error("Google Auth Init Error:", err); }
-        } else if (!google) {
-          setTimeout(initGoogle, 500);
-        }
-      };
-      initGoogle();
-    }
-  }, [currentView]);
-
-  const handleGoogleResponse = async (response: any) => {
-    if (!response?.credential || !IS_CONFIGURED) return;
-    try {
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: response.credential,
-      });
-      if (error) throw error;
-
-      const user = data.user;
-      if (!user) throw new Error('Não foi possível autenticar com Google.');
-
-      await handleExternalProfileSync({
-        email: user.email || '',
-        name: user.user_metadata?.full_name || user.user_metadata?.name || 'Usuário',
-        id: user.id,
-      });
-    } catch (err: any) {
-      console.error('Google login error:', err);
-      const msg = err?.message || 'Erro desconhecido.';
-      if (msg.includes('Provider (issuer "https://accounts.google.com") is not enabled')) {
-        alert(
-          'Login Google não habilitado no Supabase.\n' +
-          'Acesse Authentication > Providers > Google no painel do Supabase e habilite o provider, configurando Client ID/Secret e redirect URL.'
-        );
-        return;
-      }
-      alert("Erro Google: " + msg);
-    }
-  };
-  const handleAuth = async () => {
-    if (!authEmail || !authPassword || (isRegistering && !authName)) {
-      alert("Por favor, preencha todos os campos.");
-      return;
-    }
-    if (!IS_CONFIGURED) {
-      alert("Erro de configuração do banco de dados.");
-      return;
-    }
-    setIsDataLoading(true);
-    setDbTableError(null);
-    
-    try {
-      if (isRegistering) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: authEmail,
-          password: authPassword,
-          options: {
-            data: { full_name: authName }
-          }
-        });
-
-        if (signUpError) throw signUpError;
-
-        const sessionUserId = signUpData.session?.user?.id;
-        const userId = signUpData.user?.id;
-        if (!userId || !sessionUserId) {
-          alert("Conta criada. Confirme o e-mail para concluir o acesso.");
-          setIsRegistering(false);
-          setAuthPassword('');
-          return;
-        }
-
-        const pantryId = Math.random().toString(36).substr(2, 9);
-        const { error: insError } = await supabase
-          .from('profiles')
-          .insert([{ 
-            id: userId,
-            email: authEmail, 
-            name: authName, 
-            pantry_id: pantryId
-          }]);
-
-        if (insError && insError.code !== '23505') throw insError;
-        
-        const user = { id: userId, email: authEmail, name: authName, pantryId };
-        setCurrentUser(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
-        setCurrentView('dashboard');
-      } else {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: authEmail,
-          password: authPassword,
-        });
-
-        if (signInError) throw signInError;
-
-        const loggedUserId = signInData.user?.id;
-        if (!loggedUserId) {
-          throw new Error("Não foi possível identificar o usuário autenticado.");
-        }
-
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', loggedUserId)
-          .maybeSingle();
-
-        if (error) {
-          if (error.code === '42P01') {
-            setDbTableError('profiles');
-            setIsDataLoading(false);
-            return;
-          }
-          throw error;
-        }
-
-        if (!profile) {
-          const pantryId = Math.random().toString(36).substr(2, 9);
-          const nameFallback = authName || signInData.user.user_metadata?.full_name || authEmail.split('@')[0] || 'Usuário';
-          const { error: profileInsertError } = await supabase
-            .from('profiles')
-            .insert([{ id: loggedUserId, email: authEmail, name: nameFallback, pantry_id: pantryId }]);
-          if (profileInsertError && profileInsertError.code !== '23505') throw profileInsertError;
-
-          const user = { id: loggedUserId, email: authEmail, name: nameFallback, pantryId };
-          setCurrentUser(user);
-          localStorage.setItem('current_user', JSON.stringify(user));
-          setCurrentView('dashboard');
-          return;
-        }
-
-        const user = { id: profile.id, email: profile.email, name: profile.name, pantryId: profile.pantry_id };
-        setCurrentUser(user);
-        localStorage.setItem('current_user', JSON.stringify(user));
-        await loadPantryData(user.pantryId);
-        setCurrentView('dashboard');
-      }
-    } catch (e: any) {
-      console.error("Erro handleAuth:", e);
-      alert("Erro: " + (e.message || "Erro desconhecido."));
-    } finally {
-      setIsDataLoading(false);
-    }
-  };
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(SQL_SETUP_SCRIPT);
     alert("Script SQL copiado com sucesso!");
   };
 
-  const handleLogout = async () => {
-    localStorage.removeItem('current_user');
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-    setAuthEmail('');
-    setAuthPassword('');
-    setAuthName('');
-    setCurrentView('auth');
-    setPantry([]);
-  };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -399,6 +163,32 @@ const App: React.FC = () => {
     setEditingProductId,
     setFormData,
     setIsModalOpen
+  });
+
+  const {
+    authEmail,
+    authPassword,
+    authName,
+    isRegistering,
+    showPassword,
+    handleAuth,
+    handleLogout,
+    setAuthEmail,
+    setAuthPassword,
+    setAuthName,
+    setIsRegistering,
+    setShowPassword
+  } = useAuthentication({
+    supabase,
+    isConfigured: IS_CONFIGURED,
+    googleClientId: GOOGLE_CLIENT_ID,
+    loadPantryData,
+    setCurrentView,
+    setCurrentUser,
+    setPantry,
+    setIsDataLoading,
+    setDbTableError,
+    currentView
   });
 
   const { isVoiceActive, voiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
