@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeUnitId } from '../constants';
 import { Product, Unit, User, ViewType } from '../types';
 
 export interface ProductFormData {
@@ -19,8 +20,9 @@ interface UseProductActionsParams {
   editingProductId: string | null;
   formData: ProductFormData;
   supabase: SupabaseClient;
-  loadPantryData: (pantryId: string) => Promise<void>;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsDataLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  setDbTableError: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedShopItems: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   setShopQuantities: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   setCurrentView: React.Dispatch<React.SetStateAction<ViewType>>;
@@ -72,8 +74,9 @@ export const useProductActions = ({
   editingProductId,
   formData,
   supabase,
-  loadPantryData,
   setIsLoading,
+  setIsDataLoading,
+  setDbTableError,
   setSelectedShopItems,
   setShopQuantities,
   setCurrentView,
@@ -82,6 +85,43 @@ export const useProductActions = ({
   setFormData,
   setIsModalOpen
 }: UseProductActionsParams) => {
+  const loadPantryData = useCallback(async (pantryId: string) => {
+    if (!pantryId || !isConfigured) return;
+
+    setIsDataLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('pantry_items')
+        .select('*')
+        .eq('pantry_id', pantryId)
+        .order('name', { ascending: true });
+
+      if (error) {
+        if (error.code === '42P01') {
+          setDbTableError('pantry_items');
+          return;
+        }
+        throw error;
+      }
+
+      if (data) {
+        setPantry(data.map(item => ({
+          id: item.id,
+          name: item.name,
+          category: item.category || 'others',
+          currentQuantity: Number(item.current_quantity) || 0,
+          minQuantity: Number(item.min_quantity) || 0,
+          unit: normalizeUnitId(item.unit),
+          updatedAt: item.updated_at ? new Date(item.updated_at).getTime() : Date.now()
+        })));
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar dados:', error.message);
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, [isConfigured, setIsDataLoading, supabase, setDbTableError, setPantry]);
+
   const handleFinishPurchase = useCallback(async () => {
     if (!currentUser || !isConfigured) return;
 
@@ -182,6 +222,7 @@ export const useProductActions = ({
   }, [setEditingProductId, setFormData, setIsModalOpen]);
 
   return {
+    loadPantryData,
     handleFinishPurchase,
     updateQuantity,
     handleSaveProduct,

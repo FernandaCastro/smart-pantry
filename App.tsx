@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Product, ViewType, Unit, User, Language } from './types';
-import { CATEGORIES, getCategoryLabel, normalizeUnitId } from './constants';
+import { Product, ViewType, User, Language } from './types';
+import { CATEGORIES, getCategoryLabel } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
 import { useVoiceAssistant } from './hooks/useVoiceAssistant';
@@ -72,8 +72,6 @@ function decodeJwt(token: string) {
     return JSON.parse(jsonPayload);
   } catch (e) { return null; }
 }
-
-const normalizeStoredUnit = (rawUnit: unknown): Unit => normalizeUnitId(rawUnit);
 
 const App: React.FC = () => {
   type ThemeMode = 'light' | 'dark';
@@ -247,55 +245,6 @@ const App: React.FC = () => {
       alert("Erro Google: " + msg);
     }
   };
-
-
-  const loadPantryData = async (pantryId: string) => {
-    if (!pantryId || !IS_CONFIGURED) return;
-    setIsDataLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('pantry_items')
-        .select('*')
-        .eq('pantry_id', pantryId)
-        .order('name', { ascending: true });
-
-      if (error) {
-        if (error.code === '42P01') {
-          setDbTableError('pantry_items');
-          return;
-        }
-        throw error;
-      }
-
-      if (data) {
-        setPantry(data.map(item => ({
-          id: item.id,
-          name: item.name,
-          category: item.category || 'others',
-          currentQuantity: Number(item.current_quantity) || 0,
-          minQuantity: Number(item.min_quantity) || 0,
-          unit: normalizeStoredUnit(item.unit),
-          updatedAt: item.updated_at ? new Date(item.updated_at).getTime() : Date.now()
-        })));
-      }
-    } catch (error: any) {
-      console.error("Erro ao carregar dados:", error.message);
-    } finally {
-      setIsDataLoading(false);
-    }
-  };
-
-
-  const { isVoiceActive, voiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
-    apiKey: API_KEY,
-    currentUser,
-    isConfigured: IS_CONFIGURED,
-    pantryRef,
-    supabase,
-    loadPantryData,
-    t
-  });
-
   const handleAuth = async () => {
     if (!authEmail || !authPassword || (isRegistering && !authName)) {
       alert("Por favor, preencha todos os campos.");
@@ -425,6 +374,7 @@ const App: React.FC = () => {
   };
 
   const {
+    loadPantryData,
     handleFinishPurchase,
     updateQuantity,
     handleSaveProduct,
@@ -439,8 +389,9 @@ const App: React.FC = () => {
     editingProductId,
     formData,
     supabase,
-    loadPantryData,
     setIsLoading,
+    setIsDataLoading,
+    setDbTableError,
     setSelectedShopItems,
     setShopQuantities,
     setCurrentView,
@@ -448,6 +399,16 @@ const App: React.FC = () => {
     setEditingProductId,
     setFormData,
     setIsModalOpen
+  });
+
+  const { isVoiceActive, voiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
+    apiKey: API_KEY,
+    currentUser,
+    isConfigured: IS_CONFIGURED,
+    pantryRef,
+    supabase,
+    loadPantryData,
+    t
   });
 
   const handleFetchAiSuggestions = async () => {
