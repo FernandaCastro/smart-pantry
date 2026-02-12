@@ -1,11 +1,13 @@
 import React from 'react';
-import { Database, LayoutDashboard, Loader2, LogOut, Mic, Package, Settings, ShoppingBasket, Sparkles, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, Loader2, Mic, Package, Settings, ShoppingBasket, Sparkles } from 'lucide-react';
 import { TranslationKey } from '../../i18n';
 import { Language, Product, ShoppingCategoryGroup, ShoppingItem, User, ViewType } from '../../types';
 import { MainHeader } from './MainHeader';
 import { DashboardScreen } from './DashboardScreen';
 import { PantryScreen } from './PantryScreen';
 import { ShoppingScreen } from './ShoppingScreen';
+import { SettingsScreen } from './SettingsScreen';
+import { AIScreen } from './AIScreen';
 
 interface MainAppLayoutProps {
   currentView: ViewType;
@@ -203,46 +205,16 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
             )}
 
             {currentView === 'settings' && (
-              <div className="space-y-8">
-                <div className="flex items-center gap-4 p-5 bg-[var(--sp-gray-50)] rounded-[2rem]">
-                  <div className="w-12 h-12 bg-[var(--sp-violet-500)] rounded-2xl flex items-center justify-center text-[var(--sp-white)]"><UserIcon size={24} /></div>
-                  <div className="flex-1">
-                    <p className="font-bold text-[var(--sp-gray-900)]">{currentUser?.name}</p>
-                    <p className="text-xs text-[var(--sp-gray-400)]">{currentUser?.email}</p>
-                  </div>
-                  <button onClick={onLogout} className="p-3 text-[var(--sp-red-400)]"><LogOut size={20} /></button>
-                </div>
-
-                <div className="p-6 bg-[var(--sp-white)] border border-[var(--sp-gray-100)] rounded-[2rem] space-y-4">
-                  <h3 className="font-bold text-[var(--sp-gray-800)] flex items-center gap-2">
-                    <Database size={18} className="text-[var(--sp-violet-500)]" /> Status do Sistema
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--sp-gray-400)] font-bold uppercase tracking-widest">Base de Dados</span>
-                      <span className="text-[var(--sp-green-500)] font-bold">Conectado</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--sp-gray-400)] font-bold uppercase tracking-widest">IA (Gemini)</span>
-                      <span className="text-[var(--sp-green-500)] font-bold">Ativo</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[var(--sp-gray-400)] font-bold uppercase tracking-widest">Voz</span>
-                      <span className="text-[var(--sp-green-500)] font-bold">Pronto</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <SettingsScreen currentUser={currentUser} onLogout={onLogout} />
             )}
 
             {currentView === 'ai' && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 text-[var(--sp-violet-600)]"><Sparkles size={24} /><h2 className="text-xl font-bold">{t('aiTitle')}</h2></div>
-                <div className="bg-[var(--sp-white)] border-2 border-[var(--sp-violet-50)] p-6 rounded-[2.5rem] shadow-sm leading-relaxed text-[var(--sp-gray-700)] prose text-sm">
-                  {isLoading ? <Loader2 className="animate-spin text-[var(--sp-violet-500)] mx-auto" /> : <div className="whitespace-pre-wrap">{aiSuggestions || 'Nenhuma sugestão disponível.'}</div>}
-                </div>
-                <button onClick={() => onSetCurrentView('dashboard')} className="w-full py-4 border-2 border-[var(--sp-violet-500)] text-[var(--sp-violet-500)] font-bold rounded-2xl">{t('back')}</button>
-              </div>
+              <AIScreen
+                isLoading={isLoading}
+                aiSuggestions={aiSuggestions}
+                t={t}
+                onBack={() => onSetCurrentView('dashboard')}
+              />
             )}
           </main>
         </div>

@@ -33,7 +33,7 @@ export const MainHeader: React.FC<MainHeaderProps> = ({
   const HeaderIcon = viewHeaderIconMap[currentView] || Package;
 
   return (
-    <header className="sticky top-0 z-40 sp-header-surface backdrop-blur-2xl border-b border-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)] p-4 lg:px-6 flex justify-between items-center">
+    <header className="sticky top-0 z-50 shrink-0 sp-header-surface backdrop-blur-2xl border-b border-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)] p-4 lg:px-6 flex justify-between items-center">
       <div className="flex items-center gap-3">
         <div className="p-2 bg-gradient-to-br from-[var(--sp-violet-100)] to-[var(--sp-indigo-100)] rounded-xl text-[var(--sp-violet-600)] shadow-sm ring-1 ring-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)]">
           <HeaderIcon size={20} />
