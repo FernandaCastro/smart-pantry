@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { Product, ViewType, User, Language } from './types';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
@@ -14,32 +13,8 @@ import { AuthScreen } from './components/screens/AuthScreen';
 import { MainAppLayout } from './components/screens/MainAppLayout';
 import { ProductFormData, useProductActions } from './hooks/useProductActions';
 import { useAuthentication } from './hooks/useAuthentication';
+import { IS_CONFIGURED, supabase, SUPABASE_KEY, SUPABASE_URL } from './services/supabase';
 import { useDatabaseSetup } from './hooks/useDatabaseSetup';
-const APP_ENV = import.meta.env;
-
-const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = APP_ENV.VITE_SUPABASE_ANON_KEY || APP_ENV.VITE_SUPABASE_KEY || '';
-const GOOGLE_CLIENT_ID = APP_ENV.VITE_GOOGLE_CLIENT_ID || '';
-const API_KEY = APP_ENV.VITE_API_KEY || APP_ENV.VITE_GEMINI_API_KEY || '';
-
-const IS_CONFIGURED = !!(SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL.startsWith('http'));
-
-const supabase = createClient(
-  SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_KEY || 'placeholder'
-);
-
-
-function decodeJwt(token: string) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-  } catch (e) { return null; }
-}
 
 const App: React.FC = () => {
   type ThemeMode = 'light' | 'dark';
@@ -146,7 +121,6 @@ const App: React.FC = () => {
   } = useAuthentication({
     supabase,
     isConfigured: IS_CONFIGURED,
-    googleClientId: GOOGLE_CLIENT_ID,
     loadPantryData,
     setCurrentView,
     setCurrentUser,
@@ -157,7 +131,6 @@ const App: React.FC = () => {
   });
 
   const { isVoiceActive, voiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
-    apiKey: API_KEY,
     currentUser,
     isConfigured: IS_CONFIGURED,
     pantryRef,
@@ -191,7 +164,7 @@ const App: React.FC = () => {
       <MissingConfigScreen
         supabaseUrl={SUPABASE_URL}
         supabaseKey={SUPABASE_KEY}
-        googleClientId={GOOGLE_CLIENT_ID}
+        googleClientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}
       />
     );
   }
@@ -200,7 +173,7 @@ const App: React.FC = () => {
     return (
       <AuthScreen
         isRegistering={isRegistering}
-        googleClientId={GOOGLE_CLIENT_ID}
+        googleClientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}
         isDataLoading={isDataLoading}
         showPassword={showPassword}
         authName={authName}

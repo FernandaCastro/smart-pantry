@@ -3,11 +3,11 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { TranslationKey } from '../i18n';
 import { Product, Unit, User } from '../types';
+import { API_KEY } from '../services/gemini';
 import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from '../voiceUtils';
 import { createPantryItem, updatePantryItemQuantity } from './useProductActions';
 
 interface UseVoiceAssistantParams {
-  apiKey: string;
   currentUser: User | null;
   isConfigured: boolean;
   pantryRef: MutableRefObject<Product[]>;
@@ -40,7 +40,7 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
   return buffer;
 }
 
-export function useVoiceAssistant({ apiKey, currentUser, isConfigured, pantryRef, supabase, loadPantryData, t }: UseVoiceAssistantParams) {
+export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supabase, loadPantryData, t }: UseVoiceAssistantParams) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceLog, setVoiceLog] = useState('');
   const sessionRef = useRef<any>(null);
@@ -178,7 +178,7 @@ export function useVoiceAssistant({ apiKey, currentUser, isConfigured, pantryRef
 
     try {
       setIsVoiceActive(true);
-      const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+      const ai = new GoogleGenAI({ apiKey: API_KEY || '' });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
@@ -262,7 +262,7 @@ Ao chamar updatePantryQuantity:
     } catch (_err) {
       setIsVoiceActive(false);
     }
-  }, [apiKey, enqueueVoiceToolCall, isVoiceActive, stopVoiceSession]);
+  }, [enqueueVoiceToolCall, isVoiceActive, stopVoiceSession]);
 
   useEffect(() => {
     return () => {
