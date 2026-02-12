@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Search,
   LogOut,
-  Languages,
   CheckCircle2,
   Circle,
   User as UserIcon,
@@ -973,7 +972,16 @@ Ao chamar updatePantryQuantity:
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
         </div>
         <div className="flex items-center gap-2">
-           <button onClick={() => setLang(l => { const next = l === 'pt' ? 'en' : 'pt'; localStorage.setItem('app_lang', next); return next; })} className="p-2 text-gray-400 hover:text-violet-500 transition-colors"><Languages size={20} /></button>
+           <button
+             onClick={() => setLang(l => { const next = l === 'pt' ? 'en' : 'pt'; localStorage.setItem('app_lang', next); return next; })}
+             aria-label={lang === 'pt' ? 'Mudar para inglês' : 'Switch to Portuguese'}
+             title={lang === 'pt' ? 'Mudar para inglês' : 'Switch to Portuguese'}
+             className="group flex items-center gap-2 px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition-all"
+           >
+             <span className="text-base leading-none">{lang === 'pt' ? '🇧🇷' : '🇺🇸'}</span>
+             <span className="text-base leading-none text-gray-400 group-hover:text-violet-500">↔</span>
+             <span className="text-base leading-none">{lang === 'pt' ? '🇺🇸' : '🇧🇷'}</span>
+           </button>
            <button onClick={() => setCurrentView('settings')} className="p-2 text-gray-400 hover:text-violet-500 transition-colors"><Settings size={20} /></button>
         </div>
       </header>
