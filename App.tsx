@@ -30,7 +30,7 @@ import {
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { Product, ViewType, Unit, User, Language } from './types';
-import { CATEGORIES, UNITS } from './constants';
+import { CATEGORIES, UNITS, getCategoryLabel, getUnitLabel } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
 import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from './voiceUtils';
@@ -119,6 +119,12 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
   }
   return buffer;
 }
+
+const normalizeStoredUnit = (rawUnit: unknown): Unit => {
+  if (rawUnit === 'pacote') return 'package';
+  if (rawUnit === 'caixa') return 'box';
+  return (UNITS.includes(rawUnit as Unit) ? rawUnit : 'un') as Unit;
+};
 
 const App: React.FC = () => {
   type VoiceIntent = 'consume' | 'add';
@@ -314,7 +320,7 @@ const App: React.FC = () => {
           category: item.category || 'outros',
           currentQuantity: Number(item.current_quantity) || 0,
           minQuantity: Number(item.min_quantity) || 0,
-          unit: (item.unit as Unit) || 'un',
+          unit: normalizeStoredUnit(item.unit),
           updatedAt: item.updated_at ? new Date(item.updated_at).getTime() : Date.now()
         })));
       }
@@ -549,7 +555,7 @@ const App: React.FC = () => {
               description: 'Always copy exactly the product words spoken by the user (same language, no translation, no rewriting).'
             },
             amount: { type: Type.NUMBER, description: 'Use always a positive amount.' },
-            unit: { type: Type.STRING, description: "Optional. Infer the most likely unit (un, kg, l, g, ml, pacote, caixa)." },
+            unit: { type: Type.STRING, description: "Optional. Infer the most likely unit (un, kg, l, g, ml, package, box)." },
             category: { type: Type.STRING, description: 'Optional. Infer the product category when possible.' }
           },
           required: ['intent', 'productName', 'amount']
@@ -1026,12 +1032,12 @@ Ao chamar updatePantryQuantity:
                         <span className="text-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</span>
                         <div>
                           <p className="font-bold text-gray-700">{item.name}</p>
-                          <p className="text-[10px] text-fuchsia-500 font-bold uppercase">{t('stockAlertMsg')} {item.currentQuantity} {item.unit}</p>
+                          <p className="text-[10px] text-fuchsia-500 font-bold uppercase">{t('stockAlertMsg')} {item.currentQuantity} {getUnitLabel(item.unit, lang)}</p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] text-gray-400 font-bold uppercase">{t('buyMsg')}</p>
-                        <p className="font-black text-violet-600">+{item.neededQuantity} {item.unit}</p>
+                        <p className="font-black text-violet-600">+{item.neededQuantity} {getUnitLabel(item.unit, lang)}</p>
                       </div>
                     </div>
                   ))
@@ -1058,8 +1064,8 @@ Ao chamar updatePantryQuantity:
                     <div className="text-3xl p-3 bg-gray-50 rounded-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-gray-800 text-left truncate">{item.name}</h4>
-                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest text-left">{item.category}</p>
-                      <span className="text-[10px] font-bold text-gray-400 text-left block">{item.currentQuantity}/{item.minQuantity} {item.unit}</span>
+                      <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest text-left">{getCategoryLabel(item.category, lang)}</p>
+                      <span className="text-[10px] font-bold text-gray-400 text-left block">{item.currentQuantity}/{item.minQuantity} {getUnitLabel(item.unit, lang)}</span>
                       <div className="mt-1 flex items-center justify-between">
                         <div className="flex items-center gap-1">
                           <button onClick={() => updateQuantity(item.id, -1)} className="p-2 text-gray-400"><Minus size={18} /></button>
@@ -1180,6 +1186,7 @@ Ao chamar updatePantryQuantity:
         onSave={handleSaveProduct}
         onFormChange={setFormData}
         t={t}
+        lang={lang}
       />
       </div>
       </div>
