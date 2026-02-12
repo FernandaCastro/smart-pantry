@@ -1000,7 +1000,7 @@ Ao chamar updatePantryQuantity:
           <button onClick={() => setCurrentView('shopping')} className="w-full text-left bg-white rounded-2xl p-4 border border-indigo-100 hover:border-indigo-200 transition-all cursor-pointer active:scale-[0.99]">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600">{t('missingItems')}</p>
-              <Package size={16} className="text-indigo-500" />
+              <ShoppingBasket size={16} className="text-indigo-500" />
             </div>
             <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
           </button>
@@ -1070,7 +1070,7 @@ Ao chamar updatePantryQuantity:
                 <button onClick={() => setCurrentView('shopping')} className="text-left bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer active:scale-[0.99] transition-all">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
-                    <Package size={16} className="text-indigo-600" />
+                    <ShoppingBasket size={16} className="text-indigo-600" />
                   </div>
                   <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
                 </button>
