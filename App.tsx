@@ -990,14 +990,20 @@ Ao chamar updatePantryQuantity:
         </div>
 
         <div className="mt-auto space-y-3">
-          <div className="bg-white rounded-2xl p-4 border border-violet-100">
-            <p className="text-[11px] font-black uppercase tracking-wider text-violet-600">{t('totalItems')}</p>
+          <button onClick={() => setCurrentView('pantry')} className="w-full text-left bg-white rounded-2xl p-4 border border-violet-100 hover:border-violet-200 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-violet-600">{t('totalItems')}</p>
+              <Package size={16} className="text-violet-500" />
+            </div>
             <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-indigo-100">
-            <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600">{t('missingItems')}</p>
+          </button>
+          <button onClick={() => setCurrentView('shopping')} className="w-full text-left bg-white rounded-2xl p-4 border border-indigo-100 hover:border-indigo-200 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600">{t('missingItems')}</p>
+              <Package size={16} className="text-indigo-500" />
+            </div>
             <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -1054,14 +1060,20 @@ Ao chamar updatePantryQuantity:
 
             <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
               <div className="grid grid-cols-2 gap-4 lg:hidden">
-                <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
-                  <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                <button onClick={() => setCurrentView('pantry')} className="text-left bg-violet-50 p-4 rounded-3xl border border-violet-100">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                    <Package size={16} className="text-violet-600" />
+                  </div>
                   <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
-                </div>
-                <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
-                  <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                </button>
+                <button onClick={() => setCurrentView('shopping')} className="text-left bg-indigo-50 p-4 rounded-3xl border border-indigo-100">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                    <Package size={16} className="text-indigo-600" />
+                  </div>
                   <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-                </div>
+                </button>
               </div>
 
               <section className="lg:col-span-3">
@@ -1135,7 +1147,6 @@ Ao chamar updatePantryQuantity:
 
         {currentView === 'shopping' && (
           <div className="space-y-4 pb-32 lg:pb-8">
-            <h2 className="text-2xl font-black text-gray-900">{t('shopping')}</h2>
             <div className="space-y-4">
               {shoppingListByCategory.map(group => {
                 const isExpanded = shoppingCategoryExpanded[group.categoryId];
