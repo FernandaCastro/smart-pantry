@@ -56,11 +56,18 @@
   --sp-bottomnav-shadow: 0 -12px 35px -20px rgba(76, 29, 149, 0.45);
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   -webkit-tap-highlight-color: transparent;
   background: var(--sp-gray-50);
   color: var(--sp-gray-900);
+  overflow: hidden;
 }
 
 /* shared themed surfaces */
