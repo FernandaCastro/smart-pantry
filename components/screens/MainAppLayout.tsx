@@ -118,7 +118,7 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
             <button
               onClick={onStartVoiceSession}
               aria-label={t('voice')}
-              className={`w-14 h-14 flex items-center justify-center rounded-2xl transition-all border ${isVoiceActive ? 'bg-[var(--sp-red-500)] text-[var(--sp-white)] border-[var(--sp-red-500)] shadow-[0_12px_24px_-14px_rgba(239,68,68,0.55)] animate-pulse' : 'bg-[var(--sp-violet-500)] text-[var(--sp-white)] border-[var(--sp-violet-500)] shadow-lg shadow-[0_12px_24px_-14px_rgba(139,92,246,0.55)] hover:bg-[var(--sp-violet-600)]'}`}
+              className={`w-14 h-14 flex items-center justify-center rounded-2xl transition-all border ${isVoiceActive ? 'bg-gradient-to-r from-[var(--sp-red-500)] to-[var(--sp-red-400)] text-[var(--sp-white)] border-[var(--sp-red-500)] shadow-[0_12px_24px_-14px_rgba(239,68,68,0.55)] animate-pulse' : 'bg-gradient-to-r from-[var(--sp-violet-500)] to-[var(--sp-indigo-500)] text-[var(--sp-white)] border-[var(--sp-violet-500)] shadow-lg shadow-[0_12px_24px_-14px_rgba(139,92,246,0.55)] hover:brightness-105'}`}
             >
               <Mic size={20} />
             </button>
