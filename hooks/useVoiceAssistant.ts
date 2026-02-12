@@ -262,7 +262,7 @@ Ao chamar updatePantryQuantity:
     } catch (_err) {
       setIsVoiceActive(false);
     }
-  }, [apiKey, enqueueVoiceToolCall, isVoiceActive, stopVoiceSession]);
+  }, [enqueueVoiceToolCall, isVoiceActive, stopVoiceSession]);
 
   useEffect(() => {
     return () => {
