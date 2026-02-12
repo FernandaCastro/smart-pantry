@@ -24,8 +24,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onFetchAiSuggestions
 }) => {
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-br from-[var(--sp-violet-500)] to-[var(--sp-violet-700)] rounded-[2rem] p-6 text-[var(--sp-white)] relative overflow-hidden shadow-xl">
+    <div className="h-full min-h-0 flex flex-col gap-6">
+      <div className="shrink-0 bg-gradient-to-br from-[var(--sp-violet-500)] to-[var(--sp-violet-700)] rounded-[2rem] p-6 text-[var(--sp-white)] relative overflow-hidden shadow-xl">
         <div className="relative z-10">
           <h2 className="text-lg font-bold flex items-center gap-2 mb-1"><Sparkles size={18} className="text-[var(--sp-violet-200)]" /> {t('aiTitle')}</h2>
           <p className="text-[var(--sp-violet-100)] text-xs mb-4">{t('aiSub')}</p>
@@ -37,8 +37,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <Sparkles className="absolute -bottom-6 -right-6 text-[color:color-mix(in_srgb,var(--sp-white)_10%,transparent)] w-40 h-40 transform rotate-12" />
       </div>
 
-      <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-        <div className="grid grid-cols-2 gap-4 lg:hidden">
+      <div className="flex-1 min-h-0 flex flex-col gap-6">
+        <div className="shrink-0 grid grid-cols-2 gap-4 lg:hidden">
           <button onClick={() => onSetCurrentView('pantry')} className="text-left bg-[var(--sp-violet-50)] p-4 rounded-3xl border border-[var(--sp-violet-100)] cursor-pointer active:scale-[0.99] transition-all">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-[var(--sp-violet-700)] font-bold uppercase tracking-wider">{t('totalItems')}</p>
@@ -55,9 +55,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           </button>
         </div>
 
-        <section className="lg:col-span-3">
-          <h3 className="font-bold text-[var(--sp-gray-800)] mb-3 flex items-center gap-2"><AlertCircle size={18} className="text-[var(--sp-indigo-500)]" /> {t('lowStock')}</h3>
-          <div className="space-y-2">
+        <section className="flex-1 min-h-0 flex flex-col">
+          <h3 className="shrink-0 font-bold text-[var(--sp-gray-800)] mb-3 flex items-center gap-2"><AlertCircle size={18} className="text-[var(--sp-indigo-500)]" /> {t('lowStock')}</h3>
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
             {pantry.length === 0 ? (
               <div className="py-10 text-center bg-[var(--sp-gray-50)] rounded-3xl border-2 border-dashed border-[var(--sp-gray-200)] text-[var(--sp-gray-400)] text-sm">{t('pantryEmpty')}</div>
             ) : shoppingList.length === 0 ? (

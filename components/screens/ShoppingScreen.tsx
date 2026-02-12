@@ -30,6 +30,7 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
   onFinishPurchase
 }) => {
   const [shoppingCategoryExpanded, setShoppingCategoryExpanded] = useState<Record<string, boolean>>({});
+  const hasSelectedItems = Object.values(selectedShopItems).some(v => v);
 
   const shoppingList = useMemo(() => {
     return pantry
@@ -71,8 +72,8 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
   }, [shoppingListByCategory]);
 
   return (
-    <div className="space-y-4 pb-32 lg:pb-8">
-      <div className="space-y-4">
+    <div className="h-full min-h-0 flex flex-col gap-4 pb-24 lg:pb-8">
+      <div className={`flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 ${hasSelectedItems ? 'pb-8' : 'pb-2'}`}>
         {shoppingListByCategory.map(group => {
           const isExpanded = shoppingCategoryExpanded[group.categoryId];
           return (
@@ -125,9 +126,9 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
           );
         })}
       </div>
-      {Object.values(selectedShopItems).some(v => v) && (
+      {hasSelectedItems && (
         <div className="fixed bottom-24 left-4 right-4 z-[60] lg:static lg:bottom-auto lg:left-auto lg:right-auto lg:mt-2 lg:max-w-sm lg:ml-auto">
-          <button onClick={onFinishPurchase} disabled={isLoading} className="w-full bg-[var(--sp-violet-600)] text-[var(--sp-white)] py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-3">
+          <button onClick={onFinishPurchase} disabled={isLoading} className="w-full bg-gradient-to-r from-[var(--sp-violet-500)] to-[var(--sp-indigo-500)] text-[var(--sp-white)] py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-3 hover:brightness-105">
             {isLoading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
             {t('finishPurchase')}
           </button>

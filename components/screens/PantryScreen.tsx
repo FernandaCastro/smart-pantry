@@ -28,15 +28,16 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
   onDeleteProduct
 }) => {
   return (
-    <div className="space-y-4 lg:space-y-6">
-      <div className="flex items-center gap-3 lg:max-w-2xl">
+    <div className="h-full min-h-0 flex flex-col gap-4 lg:gap-6">
+      <div className="shrink-0 flex items-center gap-3 lg:max-w-2xl">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--sp-gray-400)]" size={18} />
           <input type="text" placeholder={t('searchPlaceholder')} className="w-full pl-12 pr-4 py-4 bg-[var(--sp-gray-50)] rounded-2xl border-2 border-transparent focus:border-[var(--sp-violet-500)] outline-none" value={searchQuery} onChange={e => onSetSearchQuery(e.target.value)} />
         </div>
         <button onClick={onOpenCreateModal} className="w-14 h-14 bg-[var(--sp-violet-100)] text-[var(--sp-violet-600)] rounded-2xl shadow-lg border border-[var(--sp-violet-200)] flex items-center justify-center active:scale-90 transition-all"><Plus size={24} /></button>
       </div>
-      <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+        <div className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
         {pantry.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(item => (
           <div key={item.id} className="bg-[var(--sp-white)] border border-[var(--sp-gray-100)] p-4 rounded-3xl shadow-sm">
             <div className="flex items-start gap-4">
@@ -60,6 +61,7 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
             </div>
           </div>
         ))}
+        </div>
       </div>
     </div>
   );
