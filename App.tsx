@@ -544,7 +544,10 @@ const App: React.FC = () => {
           description: 'Updates the quantity of a product in the pantry.',
           properties: {
             intent: { type: Type.STRING, description: "Use 'consume' to decrease or 'add' to increase stock." },
-            productName: { type: Type.STRING },
+            productName: {
+              type: Type.STRING,
+              description: 'Always copy exactly the product words spoken by the user (same language, no translation, no rewriting).'
+            },
             amount: { type: Type.NUMBER, description: 'Use always a positive amount.' },
             unit: { type: Type.STRING, description: "Optional. Infer the most likely unit (un, kg, l, g, ml, pacote, caixa)." },
             category: { type: Type.STRING, description: 'Optional. Infer the product category when possible.' }
@@ -594,7 +597,16 @@ const App: React.FC = () => {
         config: {
           responseModalities: [Modality.AUDIO],
           tools: [{ functionDeclarations: [updateStockTool] }],
-          systemInstruction: `Você é o assistente da Despensa Inteligente. Ao chamar updatePantryQuantity: use intent='consume' para consumo e intent='add' para adição; amount sempre positivo; infira unit e category quando houver evidência na fala; se faltar unit/category, envie vazio; normalize para singular quando possível (ex.: 'leites' -> 'leite').`,
+          systemInstruction: `Você é o assistente da Despensa Inteligente.
+Regras obrigatórias de idioma:
+1) Detecte o idioma da primeira frase do usuário e mantenha TODAS as respostas nesse mesmo idioma até o fim da sessão.
+2) Nunca misture idiomas e nunca mude automaticamente para português/inglês.
+
+Ao chamar updatePantryQuantity:
+- use intent='consume' para consumo e intent='add' para adição;
+- amount sempre positivo;
+- infira unit e category quando houver evidência na fala; se faltar unit/category, envie vazio;
+- em productName, preserve exatamente o nome falado pelo usuário (mesmo idioma, sem tradução, sem normalização, sem singularizar/pluralizar).`,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         }
       });
