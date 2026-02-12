@@ -1020,9 +1020,9 @@ Ao chamar updatePantryQuantity:
       </aside>
 
       <div className="flex flex-col min-h-screen pb-24 lg:pb-0 lg:min-h-0 flex-1 relative">
-      <header className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl border-b border-white/70 p-4 lg:px-6 flex justify-between items-center">
+      <header className="sticky top-0 z-40 bg-gradient-to-r from-violet-500/10 via-white/75 to-indigo-500/10 backdrop-blur-2xl border-b border-white/80 p-4 lg:px-6 flex justify-between items-center shadow-[0_14px_35px_-25px_rgba(76,29,149,0.65)]">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-xl text-violet-600">
+          <div className="p-2 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-xl text-violet-600 shadow-sm ring-1 ring-white/80">
             <HeaderIcon size={20} />
           </div>
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
