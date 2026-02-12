@@ -972,16 +972,24 @@ Ao chamar updatePantryQuantity:
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
         </div>
         <div className="flex items-center gap-2">
-           <button
-             onClick={() => setLang(l => { const next = l === 'pt' ? 'en' : 'pt'; localStorage.setItem('app_lang', next); return next; })}
-             aria-label={lang === 'pt' ? 'Mudar para inglês' : 'Switch to Portuguese'}
-             title={lang === 'pt' ? 'Mudar para inglês' : 'Switch to Portuguese'}
-             className="group flex items-center gap-2 px-3 py-1.5 rounded-xl border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition-all"
-           >
-             <span className="text-base leading-none">{lang === 'pt' ? '🇧🇷' : '🇺🇸'}</span>
-             <span className="text-base leading-none text-gray-400 group-hover:text-violet-500">↔</span>
-             <span className="text-base leading-none">{lang === 'pt' ? '🇺🇸' : '🇧🇷'}</span>
-           </button>
+           <div className="flex items-center gap-1.5 p-1 rounded-xl border border-violet-200 bg-violet-50">
+             <button
+               onClick={() => { setLang('pt'); localStorage.setItem('app_lang', 'pt'); }}
+               aria-label="Português"
+               title="Português"
+               className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${lang === 'pt' ? 'bg-white shadow-sm' : 'grayscale opacity-45 hover:opacity-70'}`}
+             >
+               🇧🇷
+             </button>
+             <button
+               onClick={() => { setLang('en'); localStorage.setItem('app_lang', 'en'); }}
+               aria-label="English"
+               title="English"
+               className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${lang === 'en' ? 'bg-white shadow-sm' : 'grayscale opacity-45 hover:opacity-70'}`}
+             >
+               🇺🇸
+             </button>
+           </div>
            <button onClick={() => setCurrentView('settings')} className="p-2 text-gray-400 hover:text-violet-500 transition-colors"><Settings size={20} /></button>
         </div>
       </header>
