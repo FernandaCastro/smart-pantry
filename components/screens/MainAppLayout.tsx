@@ -70,6 +70,8 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
   onFinishPurchase,
   onLogout
 }) => {
+  const hasInternalScrollableList = currentView === 'dashboard' || currentView === 'pantry' || currentView === 'shopping';
+
   const shoppingList = useMemo(() => {
     return pantry
       .filter(p => p.currentQuantity < p.minQuantity)
@@ -151,7 +153,7 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
             onToggleTheme={onToggleTheme}
           />
 
-          <main className="flex-1 min-h-0 p-4 lg:p-6 overflow-y-auto">
+          <main className={`flex-1 min-h-0 p-4 lg:p-6 ${hasInternalScrollableList ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             {isDataLoading && (
               <div className="flex flex-col items-center justify-center py-20 text-[var(--sp-violet-400)] animate-pulse">
                 <Loader2 className="animate-spin mb-4" size={40} />

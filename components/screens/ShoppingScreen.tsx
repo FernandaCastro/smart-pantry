@@ -71,8 +71,8 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
   }, [shoppingListByCategory]);
 
   return (
-    <div className="space-y-4 pb-32 lg:pb-8">
-      <div className="space-y-4">
+    <div className="h-full min-h-0 flex flex-col gap-4 pb-32 lg:pb-8">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
         {shoppingListByCategory.map(group => {
           const isExpanded = shoppingCategoryExpanded[group.categoryId];
           return (
