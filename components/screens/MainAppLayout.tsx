@@ -79,11 +79,11 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
   }, [pantry]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--sp-violet-100)] via-[var(--sp-indigo-50)] to-[var(--sp-fuchsia-100)] lg:p-6 relative overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-[var(--sp-violet-100)] via-[var(--sp-indigo-50)] to-[var(--sp-fuchsia-100)] lg:p-6 relative overflow-hidden">
       <div className="pointer-events-none absolute -top-20 -left-16 h-80 w-80 rounded-full bg-[color:color-mix(in_srgb,var(--sp-violet-500)_25%,transparent)] blur-3xl"></div>
       <div className="pointer-events-none absolute -bottom-16 -right-10 h-72 w-72 rounded-full bg-[color:color-mix(in_srgb,var(--sp-indigo-500)_25%,transparent)] blur-3xl"></div>
-      <div className="mx-auto flex min-h-screen max-w-6xl bg-[color:color-mix(in_srgb,var(--sp-white)_85%,transparent)] backdrop-blur-xl shadow-2xl shadow-[0_25px_45px_-30px_rgba(76,29,149,0.35)] relative lg:min-h-[calc(100vh-3rem)] lg:rounded-[2rem] lg:border lg:border-[color:color-mix(in_srgb,var(--sp-white)_60%,transparent)] lg:overflow-hidden">
-        <aside className="hidden lg:flex w-72 border-r border-[color:color-mix(in_srgb,var(--sp-white)_70%,transparent)] bg-gradient-to-b from-[color:color-mix(in_srgb,var(--sp-violet-100)_80%,transparent)] via-[color:color-mix(in_srgb,var(--sp-indigo-50)_70%,transparent)] to-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)] p-6 flex-col gap-8">
+      <div className="mx-auto flex h-screen max-w-6xl bg-[color:color-mix(in_srgb,var(--sp-white)_85%,transparent)] backdrop-blur-xl shadow-2xl shadow-[0_25px_45px_-30px_rgba(76,29,149,0.35)] relative lg:h-[calc(100vh-3rem)] lg:rounded-[2rem] lg:border lg:border-[color:color-mix(in_srgb,var(--sp-white)_60%,transparent)] lg:overflow-hidden">
+        <aside className="hidden lg:flex h-full min-h-0 w-72 border-r border-[color:color-mix(in_srgb,var(--sp-white)_70%,transparent)] bg-gradient-to-b from-[color:color-mix(in_srgb,var(--sp-violet-100)_80%,transparent)] via-[color:color-mix(in_srgb,var(--sp-indigo-50)_70%,transparent)] to-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)] p-6 flex-col gap-8">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 bg-[var(--sp-violet-500)] rounded-xl text-[var(--sp-white)]"><Package size={20} /></div>
@@ -142,7 +142,7 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
           </div>
         </aside>
 
-        <div className="flex flex-col h-screen lg:h-auto lg:min-h-0 flex-1 relative overflow-hidden pb-24 lg:pb-0">
+        <div className="flex flex-col h-full min-h-0 flex-1 relative overflow-hidden pb-24 lg:pb-0">
           <MainHeader
             currentView={currentView}
             lang={lang}
