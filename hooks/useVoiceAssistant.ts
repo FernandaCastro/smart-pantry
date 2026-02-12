@@ -16,6 +16,16 @@ interface UseVoiceAssistantParams {
   t: (key: TranslationKey) => string;
 }
 
+interface VoiceSessionRuntime {
+  session: any | null;
+  mediaStream: MediaStream | null;
+  inputSource: MediaStreamAudioSourceNode | null;
+  inputProcessor: ScriptProcessorNode | null;
+  isListening: boolean;
+  hasDetectedFirstRequest: boolean;
+  autoCloseFallbackId: number | null;
+}
+
 function encode(bytes: Uint8Array) {
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
@@ -43,11 +53,53 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
 export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supabase, loadPantryData, t }: UseVoiceAssistantParams) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceLog, setVoiceLog] = useState('');
-  const sessionRef = useRef<any>(null);
+  const sessionRef = useRef<VoiceSessionRuntime>({
+    session: null,
+    mediaStream: null,
+    inputSource: null,
+    inputProcessor: null,
+    isListening: false,
+    hasDetectedFirstRequest: false,
+    autoCloseFallbackId: null
+  });
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const voiceQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const clearAutoCloseFallback = useCallback(() => {
+    if (sessionRef.current.autoCloseFallbackId !== null) {
+      window.clearTimeout(sessionRef.current.autoCloseFallbackId);
+      sessionRef.current.autoCloseFallbackId = null;
+    }
+  }, []);
+
+  const stopListeningInput = useCallback(() => {
+    sessionRef.current.isListening = false;
+
+    if (sessionRef.current.inputProcessor) {
+      sessionRef.current.inputProcessor.disconnect();
+      sessionRef.current.inputProcessor.onaudioprocess = null;
+      sessionRef.current.inputProcessor = null;
+    }
+
+    if (sessionRef.current.inputSource) {
+      sessionRef.current.inputSource.disconnect();
+      sessionRef.current.inputSource = null;
+    }
+
+    if (sessionRef.current.mediaStream) {
+      sessionRef.current.mediaStream.getTracks().forEach((track) => track.stop());
+      sessionRef.current.mediaStream = null;
+    }
+  }, []);
+
+
+  const refreshPantryInBackground = useCallback((pantryId: string) => {
+    loadPantryData(pantryId).catch((error) => {
+      console.error('Erro ao recarregar despensa após comando de voz:', error);
+    });
+  }, [loadPantryData]);
 
   const applyVoicePantryUpdate = useCallback(async (args: any) => {
     if (!currentUser || !isConfigured) {
@@ -101,7 +153,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
 
         if (error) throw error;
 
-        await loadPantryData(currentUser.pantryId);
+        refreshPantryInBackground(currentUser.pantryId);
         const message = t('productCreated').replace('{name}', productName);
         setVoiceLog(message);
         return { status: 'created', message, name: productName, quantity: amount, category, unit };
@@ -120,7 +172,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
 
       if (error) throw error;
 
-      await loadPantryData(currentUser.pantryId);
+      refreshPantryInBackground(currentUser.pantryId);
       const message = t('quantityUpdated').replace('{name}', target.name);
       setVoiceLog(message);
       return { status: 'updated', message, id: target.id, quantity: newQty, category: target.category, unit: target.unit };
@@ -129,19 +181,26 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
       setVoiceLog(message);
       return { status: 'error', message };
     }
-  }, [currentUser, isConfigured, pantryRef, t, supabase, loadPantryData]);
+  }, [currentUser, isConfigured, pantryRef, t, supabase, refreshPantryInBackground]);
 
-  const stopVoiceSession = useCallback(() => {
+  const stopVoiceSession = useCallback((options?: { clearLog?: boolean }) => {
     setIsVoiceActive(false);
-    voiceQueueRef.current = Promise.resolve();
+    if (options?.clearLog) {
+      setVoiceLog('');
+    }
 
-    if (sessionRef.current) {
+    clearAutoCloseFallback();
+    stopListeningInput();
+    voiceQueueRef.current = Promise.resolve();
+    sessionRef.current.hasDetectedFirstRequest = false;
+
+    if (sessionRef.current.session) {
       try {
-        sessionRef.current.close();
+        sessionRef.current.session.close();
       } catch (_err) {
         // ignore close errors
       }
-      sessionRef.current = null;
+      sessionRef.current.session = null;
     }
 
     for (const source of sourcesRef.current) {
@@ -159,14 +218,21 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
       if (output.state !== 'closed') output.close().catch(() => {});
       audioContextsRef.current = null;
     }
-  }, []);
+  }, [clearAutoCloseFallback, stopListeningInput]);
 
   const enqueueVoiceToolCall = useCallback((functionCall: any, sessionPromise: Promise<any>) => {
     voiceQueueRef.current = voiceQueueRef.current
       .then(async () => {
         const result = await applyVoicePantryUpdate(functionCall.args);
         const session = await sessionPromise;
-        session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: result } });
+
+        const toolResponse = {
+          ...result,
+          message: undefined,
+          responseLanguage: 'match_user_current_utterance'
+        };
+
+        session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: toolResponse } });
       })
       .catch((error) => {
         console.error('Erro na fila de comandos de voz:', error);
@@ -178,11 +244,15 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
 
     try {
       setIsVoiceActive(true);
+      setVoiceLog('');
+      sessionRef.current.hasDetectedFirstRequest = false;
       const ai = new GoogleGenAI({ apiKey: API_KEY || '' });
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputCtx, output: outputCtx };
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      sessionRef.current.mediaStream = stream;
+      sessionRef.current.isListening = true;
 
       const updateStockTool = {
         name: 'updatePantryQuantity',
@@ -208,8 +278,11 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
         callbacks: {
           onopen: () => {
             const source = inputCtx.createMediaStreamSource(stream);
-            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            const scriptProcessor = inputCtx.createScriptProcessor(2048, 1, 1);
+            sessionRef.current.inputSource = source;
+            sessionRef.current.inputProcessor = scriptProcessor;
             scriptProcessor.onaudioprocess = (e) => {
+              if (!sessionRef.current.isListening) return;
               const inputData = e.inputBuffer.getChannelData(0);
               const int16 = new Int16Array(inputData.length);
               for (let i = 0; i < inputData.length; i++) int16[i] = inputData[i] * 32768;
@@ -222,6 +295,14 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
             if (message.toolCall) {
               for (const fc of message.toolCall.functionCalls) {
                 if (fc.name === 'updatePantryQuantity') {
+                  if (!sessionRef.current.hasDetectedFirstRequest) {
+                    sessionRef.current.hasDetectedFirstRequest = true;
+                    stopListeningInput();
+                    clearAutoCloseFallback();
+                    sessionRef.current.autoCloseFallbackId = window.setTimeout(() => {
+                      stopVoiceSession({ clearLog: true });
+                    }, 10000);
+                  }
                   enqueueVoiceToolCall(fc, sessionPromise);
                 }
               }
@@ -236,6 +317,13 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
               source.start(nextStartTimeRef.current);
               nextStartTimeRef.current += buffer.duration;
               sourcesRef.current.add(source);
+              source.onended = () => {
+                sourcesRef.current.delete(source);
+                if (sessionRef.current.hasDetectedFirstRequest && sourcesRef.current.size === 0) {
+                  clearAutoCloseFallback();
+                  stopVoiceSession({ clearLog: true });
+                }
+              };
             }
           },
           onclose: () => stopVoiceSession(),
@@ -246,8 +334,10 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
           tools: [{ functionDeclarations: [updateStockTool] }],
           systemInstruction: `Você é o assistente da Despensa Inteligente.
 Regras obrigatórias de idioma:
-1) Detecte o idioma da primeira frase do usuário e mantenha TODAS as respostas nesse mesmo idioma até o fim da sessão.
-2) Nunca misture idiomas e nunca mude automaticamente para português/inglês.
+1) Responda no idioma da fala atual do usuário (pt-BR quando o usuário falar português; en-US quando o usuário falar inglês).
+2) Nunca misture idiomas na mesma resposta.
+3) Não use o idioma do app para decidir a resposta; use apenas o idioma detectado no áudio do usuário.
+4) O campo responseLanguage do tool response é apenas um lembrete para manter o idioma da fala do usuário.
 
 Ao chamar updatePantryQuantity:
 - use intent='consume' para consumo e intent='add' para adição;
@@ -258,11 +348,11 @@ Ao chamar updatePantryQuantity:
         }
       });
 
-      sessionRef.current = await sessionPromise;
+      sessionRef.current.session = await sessionPromise;
     } catch (_err) {
       setIsVoiceActive(false);
     }
-  }, [enqueueVoiceToolCall, isVoiceActive, stopVoiceSession]);
+  }, [clearAutoCloseFallback, enqueueVoiceToolCall, isVoiceActive, stopListeningInput, stopVoiceSession]);
 
   useEffect(() => {
     return () => {

@@ -65,7 +65,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                 <CheckCircle2 size={32} /> {t('stockOk')}
               </div>
             ) : (
-              shoppingList.slice(0, 3).map(item => (
+              shoppingList.map(item => (
                 <div key={item.id} className="flex items-center justify-between p-4 bg-[var(--sp-white)] border border-[var(--sp-gray-100)] rounded-2xl shadow-sm">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</span>
