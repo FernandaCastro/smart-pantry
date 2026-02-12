@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { LayoutDashboard, Loader2, Mic, Package, Settings, ShoppingBasket, Sparkles } from 'lucide-react';
 import { TranslationKey } from '../../i18n';
-import { Language, Product, ShoppingCategoryGroup, ShoppingItem, User, ViewType } from '../../types';
+import { Language, Product, ShoppingItem, User, ViewType } from '../../types';
 import { MainHeader } from './MainHeader';
 import { DashboardScreen } from './DashboardScreen';
 import { PantryScreen } from './PantryScreen';
@@ -13,9 +13,6 @@ interface MainAppLayoutProps {
   currentView: ViewType;
   isVoiceActive: boolean;
   pantry: Product[];
-  shoppingList: ShoppingItem[];
-  shoppingListByCategory: ShoppingCategoryGroup[];
-  shoppingCategoryExpanded: Record<string, boolean>;
   selectedShopItems: Record<string, boolean>;
   shopQuantities: Record<string, number>;
   searchQuery: string;
@@ -36,7 +33,6 @@ interface MainAppLayoutProps {
   onUpdateQuantity: (id: string, delta: number) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
-  onToggleShoppingCategory: (categoryId: string) => void;
   onToggleSelectedShopItem: (itemId: string) => void;
   onDecreaseShopQuantity: (item: ShoppingItem) => void;
   onIncreaseShopQuantity: (item: ShoppingItem) => void;
@@ -48,9 +44,6 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
   currentView,
   isVoiceActive,
   pantry,
-  shoppingList,
-  shoppingListByCategory,
-  shoppingCategoryExpanded,
   selectedShopItems,
   shopQuantities,
   searchQuery,
@@ -71,13 +64,18 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
   onUpdateQuantity,
   onEditProduct,
   onDeleteProduct,
-  onToggleShoppingCategory,
   onToggleSelectedShopItem,
   onDecreaseShopQuantity,
   onIncreaseShopQuantity,
   onFinishPurchase,
   onLogout
 }) => {
+  const shoppingList = useMemo(() => {
+    return pantry
+      .filter(p => p.currentQuantity < p.minQuantity)
+      .map(p => ({ ...p, neededQuantity: Math.max(0, p.minQuantity - p.currentQuantity) }));
+  }, [pantry]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--sp-violet-100)] via-[var(--sp-indigo-50)] to-[var(--sp-fuchsia-100)] lg:p-6 relative overflow-hidden">
       <div className="pointer-events-none absolute -top-20 -left-16 h-80 w-80 rounded-full bg-[color:color-mix(in_srgb,var(--sp-violet-500)_25%,transparent)] blur-3xl"></div>
@@ -189,14 +187,12 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
 
             {currentView === 'shopping' && (
               <ShoppingScreen
-                shoppingListByCategory={shoppingListByCategory}
-                shoppingCategoryExpanded={shoppingCategoryExpanded}
+                pantry={pantry}
                 selectedShopItems={selectedShopItems}
                 shopQuantities={shopQuantities}
                 lang={lang}
                 isLoading={isLoading}
                 t={t}
-                onToggleShoppingCategory={onToggleShoppingCategory}
                 onToggleSelectedShopItem={onToggleSelectedShopItem}
                 onDecreaseShopQuantity={onDecreaseShopQuantity}
                 onIncreaseShopQuantity={onIncreaseShopQuantity}

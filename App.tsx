@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Product, ViewType, User, Language } from './types';
-import { CATEGORIES, getCategoryLabel } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
 import { useVoiceAssistant } from './hooks/useVoiceAssistant';
@@ -101,7 +100,6 @@ const App: React.FC = () => {
 
   const [selectedShopItems, setSelectedShopItems] = useState<Record<string, boolean>>({});
   const [shopQuantities, setShopQuantities] = useState<Record<string, number>>({});
-  const [shoppingCategoryExpanded, setShoppingCategoryExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
@@ -210,45 +208,6 @@ const App: React.FC = () => {
     setCurrentView('ai');
   };
 
-  const shoppingList = useMemo(() => {
-    return pantry
-      .filter(p => p.currentQuantity < p.minQuantity)
-      .map(p => ({ ...p, neededQuantity: Math.max(0, p.minQuantity - p.currentQuantity) }));
-  }, [pantry]);
-  const shoppingListByCategory = useMemo(() => {
-    const grouped = shoppingList.reduce<Record<string, typeof shoppingList>>((acc, item) => {
-      const categoryId = item.category || 'others';
-      if (!acc[categoryId]) acc[categoryId] = [];
-      acc[categoryId].push(item);
-      return acc;
-    }, {});
-
-    const collator = new Intl.Collator(lang === 'pt' ? 'pt-BR' : 'en-US');
-
-    return Object.entries(grouped)
-      .map(([categoryId, items]) => {
-        const category = CATEGORIES.find(c => c.id === categoryId);
-        return {
-          categoryId,
-          categoryLabel: getCategoryLabel(categoryId, lang),
-          categoryIcon: category?.icon || '📦',
-          items: [...items].sort((a, b) => collator.compare(a.name, b.name))
-        };
-      })
-      .sort((a, b) => collator.compare(a.categoryLabel, b.categoryLabel));
-  }, [shoppingList, lang]);
-
-  useEffect(() => {
-    setShoppingCategoryExpanded(prev => {
-      const next: Record<string, boolean> = {};
-      shoppingListByCategory.forEach(({ categoryId }) => {
-        next[categoryId] = prev[categoryId] ?? true;
-      });
-      return next;
-    });
-  }, [shoppingListByCategory]);
-
-
   if (dbTableError) {
     return (
       <DbSetupErrorScreen
@@ -297,9 +256,6 @@ const App: React.FC = () => {
         currentView={currentView}
         isVoiceActive={isVoiceActive}
         pantry={pantry}
-        shoppingList={shoppingList}
-        shoppingListByCategory={shoppingListByCategory}
-        shoppingCategoryExpanded={shoppingCategoryExpanded}
         selectedShopItems={selectedShopItems}
         shopQuantities={shopQuantities}
         searchQuery={searchQuery}
@@ -323,7 +279,6 @@ const App: React.FC = () => {
         onUpdateQuantity={updateQuantity}
         onEditProduct={handleEditClick}
         onDeleteProduct={handleDeleteProduct}
-        onToggleShoppingCategory={(categoryId) => setShoppingCategoryExpanded(prev => ({ ...prev, [categoryId]: !prev[categoryId] }))}
         onToggleSelectedShopItem={(itemId) => setSelectedShopItems(prev => ({ ...prev, [itemId]: !prev[itemId] }))}
         onDecreaseShopQuantity={(item) => setShopQuantities(prev => ({ ...prev, [item.id]: Math.max(0, (prev[item.id] || item.neededQuantity) - 1) }))}
         onIncreaseShopQuantity={(item) => setShopQuantities(prev => ({ ...prev, [item.id]: (prev[item.id] || item.neededQuantity) + 1 }))}
