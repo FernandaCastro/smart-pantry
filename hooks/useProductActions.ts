@@ -138,7 +138,7 @@ export const useProductActions = ({
       await loadPantryData(currentUser.pantryId);
       setSelectedShopItems({});
       setShopQuantities({});
-      setCurrentView('shopping');
+      setCurrentView('dashboard');
     } catch (error) {
       console.error(error);
     } finally {
