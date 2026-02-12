@@ -15,6 +15,13 @@ export interface ShoppingItem extends Product {
   neededQuantity: number;
 }
 
+export interface ShoppingCategoryGroup {
+  categoryId: string;
+  categoryLabel: string;
+  categoryIcon: string;
+  items: ShoppingItem[];
+}
+
 export type ViewType = 'dashboard' | 'pantry' | 'shopping' | 'settings' | 'ai' | 'auth';
 
 export interface Category {
