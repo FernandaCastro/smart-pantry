@@ -30,6 +30,39 @@ interface UseProductActionsParams {
   setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+export const createPantryItem = async ({
+  supabase,
+  payload
+}: {
+  supabase: SupabaseClient;
+  payload: {
+    pantry_id: string;
+    name: string;
+    category: string;
+    current_quantity: number;
+    min_quantity: number;
+    unit: Unit;
+    updated_at: string;
+  };
+}) => {
+  return supabase.from('pantry_items').insert([payload]);
+};
+
+export const updatePantryItemQuantity = async ({
+  supabase,
+  id,
+  quantity
+}: {
+  supabase: SupabaseClient;
+  id: string;
+  quantity: number;
+}) => {
+  return supabase
+    .from('pantry_items')
+    .update({ current_quantity: quantity, updated_at: new Date().toISOString() })
+    .eq('id', id);
+};
+
 export const useProductActions = ({
   currentUser,
   isConfigured,
@@ -59,11 +92,7 @@ export const useProductActions = ({
       for (const item of itemsToUpdate) {
         const boughtQty = shopQuantities[item.id] || (item.minQuantity - item.currentQuantity);
         const newQty = item.currentQuantity + boughtQty;
-
-        await supabase
-          .from('pantry_items')
-          .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
-          .eq('id', item.id);
+        await updatePantryItemQuantity({ supabase, id: item.id, quantity: newQty });
       }
 
       await loadPantryData(currentUser.pantryId);
@@ -84,11 +113,7 @@ export const useProductActions = ({
     const newQty = Math.max(0, item.currentQuantity + delta);
     setPantry(prev => prev.map(p => p.id === id ? { ...p, currentQuantity: newQty } : p));
 
-    const { error } = await supabase
-      .from('pantry_items')
-      .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
-      .eq('id', id);
-
+    const { error } = await updatePantryItemQuantity({ supabase, id, quantity: newQty });
     if (error) await loadPantryData(currentUser.pantryId);
   }, [pantry, currentUser, isConfigured, setPantry, supabase, loadPantryData]);
 
@@ -114,7 +139,7 @@ export const useProductActions = ({
     try {
       const { error } = editingProductId
         ? await supabase.from('pantry_items').update(payload).eq('id', editingProductId)
-        : await supabase.from('pantry_items').insert([payload]);
+        : await createPantryItem({ supabase, payload });
 
       if (error) throw error;
 

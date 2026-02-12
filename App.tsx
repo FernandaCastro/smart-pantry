@@ -5,7 +5,6 @@ import { Product, ViewType, Unit, User, Language } from './types';
 import { CATEGORIES, getCategoryLabel, normalizeUnitId } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
-import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from './voiceUtils';
 import { useVoiceAssistant } from './hooks/useVoiceAssistant';
 import { BottomNav } from './components/BottomNav';
 import { VoiceAssistantOverlay } from './components/VoiceAssistantOverlay';
@@ -112,12 +111,6 @@ const App: React.FC = () => {
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
-
-  const { isVoiceActive, voiceLog, setVoiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
-    apiKey: API_KEY,
-    onUpdatePantry: async (args: any) => applyVoicePantryUpdate(args)
-  });
-
 
   useEffect(() => {
     const checkSession = async () => {
@@ -292,6 +285,17 @@ const App: React.FC = () => {
     }
   };
 
+
+  const { isVoiceActive, voiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
+    apiKey: API_KEY,
+    currentUser,
+    isConfigured: IS_CONFIGURED,
+    pantryRef,
+    supabase,
+    loadPantryData,
+    t
+  });
+
   const handleAuth = async () => {
     if (!authEmail || !authPassword || (isRegistering && !authName)) {
       alert("Por favor, preencha todos os campos.");
@@ -412,75 +416,6 @@ const App: React.FC = () => {
     setAuthName('');
     setCurrentView('auth');
     setPantry([]);
-  };
-
-  const applyVoicePantryUpdate = async (args: any) => {
-    if (!currentUser || !IS_CONFIGURED) {
-      return { status: 'error', message: 'Sessão indisponível.' };
-    }
-
-    const productName = String(args?.productName || '').trim();
-    const amount = Number(args?.amount);
-    const intent = inferVoiceIntent(args);
-    const unit = normalizeVoiceUnit(args?.unit);
-    const category = normalizeVoiceCategory(args?.category);
-
-    if (!productName || !Number.isFinite(amount) || amount <= 0 || !intent) {
-      const message = 'Comando de voz inválido.';
-      setVoiceLog(message);
-      return { status: 'error', message };
-    }
-
-    try {
-      const existingItem = findBestPantryItemByName(pantryRef.current, productName);
-
-      if (!existingItem && intent === 'consume') {
-        const message = t('productNotFound');
-        setVoiceLog(message);
-        return { status: 'error', message };
-      }
-
-      if (!existingItem && intent === 'add') {
-        const payload = {
-          pantry_id: currentUser.pantryId,
-          name: productName,
-          category,
-          current_quantity: amount,
-          min_quantity: 1,
-          unit,
-          updated_at: new Date().toISOString()
-        };
-
-        const { error } = await supabase.from('pantry_items').insert([payload]);
-        if (error) throw error;
-
-        await loadPantryData(currentUser.pantryId);
-        const message = t('productCreated').replace('{name}', productName);
-        setVoiceLog(message);
-        return { status: 'created', message, name: productName, quantity: amount, category, unit };
-      }
-
-      const target = existingItem as Product;
-      const newQty = intent === 'consume'
-        ? Math.max(0, target.currentQuantity - amount)
-        : target.currentQuantity + amount;
-
-      const { error } = await supabase
-        .from('pantry_items')
-        .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
-        .eq('id', target.id);
-
-      if (error) throw error;
-
-      await loadPantryData(currentUser.pantryId);
-      const message = t('quantityUpdated').replace('{name}', target.name);
-      setVoiceLog(message);
-      return { status: 'updated', message, id: target.id, quantity: newQty, category: target.category, unit: target.unit };
-    } catch (error: any) {
-      const message = `Erro ao atualizar estoque por voz: ${error.message}`;
-      setVoiceLog(message);
-      return { status: 'error', message };
-    }
   };
 
   const handleCloseModal = () => {
