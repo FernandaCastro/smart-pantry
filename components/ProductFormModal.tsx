@@ -39,8 +39,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="relative w-full max-w-md bg-white rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl">
-        <h2 className="text-2xl font-black text-gray-900 mb-6">{editingProductId ? t('editTitle') : t('addTitle')}</h2>
+      <div className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl border border-white/80">
+        <h2 className="text-2xl font-black text-gray-900 mb-2">{editingProductId ? t('editTitle') : t('addTitle')}</h2>
+        <p className="text-sm text-slate-500 mb-6">Preencha os detalhes para manter sua despensa organizada.</p>
         <div className="space-y-5">
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('nameLabel')}</label>
@@ -72,7 +73,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
           <div className="pt-4 flex gap-3">
             <button onClick={onClose} className="flex-1 py-4 text-gray-400 font-bold">{t('cancel')}</button>
-            <button onClick={onSave} disabled={isLoading || !formData.name} className="flex-[2] bg-violet-500 text-white py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2">
+            <button onClick={onSave} disabled={isLoading || !formData.name} className="flex-[2] bg-gradient-to-r from-violet-500 to-indigo-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-violet-500/30 flex items-center justify-center gap-2">
               {isLoading ? <Loader2 className="animate-spin" size={20} /> : (editingProductId ? t('updateItem') : t('save'))}
             </button>
           </div>

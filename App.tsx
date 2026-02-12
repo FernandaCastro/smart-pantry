@@ -956,9 +956,11 @@ Ao chamar updatePantryQuantity:
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 lg:p-6">
-      <div className="mx-auto flex min-h-screen max-w-6xl bg-white shadow-2xl relative lg:min-h-[calc(100vh-3rem)] lg:rounded-[2rem] lg:border lg:border-slate-200 lg:overflow-hidden">
-      <aside className="hidden lg:flex w-72 border-r border-gray-100 bg-gradient-to-b from-violet-50 to-white p-6 flex-col gap-8">
+    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-indigo-50 to-fuchsia-100 lg:p-6 relative overflow-hidden">
+      <div className="pointer-events-none absolute -top-20 -left-16 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl"></div>
+      <div className="pointer-events-none absolute -bottom-16 -right-10 h-72 w-72 rounded-full bg-indigo-300/25 blur-3xl"></div>
+      <div className="mx-auto flex min-h-screen max-w-6xl bg-white/85 backdrop-blur-xl shadow-2xl shadow-violet-900/10 relative lg:min-h-[calc(100vh-3rem)] lg:rounded-[2rem] lg:border lg:border-white/60 lg:overflow-hidden">
+      <aside className="hidden lg:flex w-72 border-r border-white/70 bg-gradient-to-b from-violet-100/80 via-indigo-50/70 to-white/80 p-6 flex-col gap-8">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2 bg-violet-500 rounded-xl text-white"><Package size={20} /></div>
@@ -981,7 +983,7 @@ Ao chamar updatePantryQuantity:
               <button
                 key={item.id}
                 onClick={() => setCurrentView(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${isActive ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30' : 'text-slate-500 hover:bg-white hover:text-violet-600'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${isActive ? 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-500/30' : 'text-slate-500 hover:bg-white/90 hover:text-violet-600'}`}
               >
                 <Icon size={18} /> {item.label}
               </button>
@@ -1018,9 +1020,9 @@ Ao chamar updatePantryQuantity:
       </aside>
 
       <div className="flex flex-col min-h-screen pb-24 lg:pb-0 lg:min-h-0 flex-1 relative">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 p-4 lg:px-6 flex justify-between items-center">
+      <header className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl border-b border-white/70 p-4 lg:px-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
+          <div className="p-2 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-xl text-violet-600">
             <HeaderIcon size={20} />
           </div>
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
