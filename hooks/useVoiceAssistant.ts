@@ -94,6 +94,13 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
     }
   }, []);
 
+
+  const refreshPantryInBackground = useCallback((pantryId: string) => {
+    loadPantryData(pantryId).catch((error) => {
+      console.error('Erro ao recarregar despensa após comando de voz:', error);
+    });
+  }, [loadPantryData]);
+
   const applyVoicePantryUpdate = useCallback(async (args: any) => {
     if (!currentUser || !isConfigured) {
       return { status: 'error', message: 'Sessão indisponível.' };
@@ -146,7 +153,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
 
         if (error) throw error;
 
-        await loadPantryData(currentUser.pantryId);
+        refreshPantryInBackground(currentUser.pantryId);
         const message = t('productCreated').replace('{name}', productName);
         setVoiceLog(message);
         return { status: 'created', message, name: productName, quantity: amount, category, unit };
@@ -165,7 +172,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
 
       if (error) throw error;
 
-      await loadPantryData(currentUser.pantryId);
+      refreshPantryInBackground(currentUser.pantryId);
       const message = t('quantityUpdated').replace('{name}', target.name);
       setVoiceLog(message);
       return { status: 'updated', message, id: target.id, quantity: newQty, category: target.category, unit: target.unit };
@@ -174,7 +181,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
       setVoiceLog(message);
       return { status: 'error', message };
     }
-  }, [currentUser, isConfigured, pantryRef, t, supabase, loadPantryData]);
+  }, [currentUser, isConfigured, pantryRef, t, supabase, refreshPantryInBackground]);
 
   const stopVoiceSession = useCallback((options?: { clearLog?: boolean }) => {
     setIsVoiceActive(false);
@@ -271,7 +278,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
         callbacks: {
           onopen: () => {
             const source = inputCtx.createMediaStreamSource(stream);
-            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            const scriptProcessor = inputCtx.createScriptProcessor(2048, 1, 1);
             sessionRef.current.inputSource = source;
             sessionRef.current.inputProcessor = scriptProcessor;
             scriptProcessor.onaudioprocess = (e) => {
