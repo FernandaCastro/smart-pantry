@@ -14,6 +14,7 @@ import {
   LogOut,
   CheckCircle2,
   Circle,
+  ChevronDown,
   User as UserIcon,
   Pencil,
   Loader2,
@@ -24,7 +25,8 @@ import {
   Copy,
   Terminal,
   ExternalLink,
-  Mic
+  Mic,
+  ShoppingBasket
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -152,6 +154,7 @@ const App: React.FC = () => {
 
   const [selectedShopItems, setSelectedShopItems] = useState<Record<string, boolean>>({});
   const [shopQuantities, setShopQuantities] = useState<Record<string, number>>({});
+  const [shoppingCategoryExpanded, setShoppingCategoryExpanded] = useState<Record<string, boolean>>({});
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceLog, setVoiceLog] = useState<string>('');
   const sessionRef = useRef<any>(null);
@@ -734,6 +737,49 @@ Ao chamar updatePantryQuantity:
       .map(p => ({ ...p, neededQuantity: Math.max(0, p.minQuantity - p.currentQuantity) }));
   }, [pantry]);
 
+  const viewHeaderIconMap: Partial<Record<ViewType, React.ComponentType<{ size?: number; className?: string }>>> = {
+    dashboard: LayoutDashboard,
+    pantry: Package,
+    shopping: ShoppingBasket,
+    ai: Sparkles,
+    settings: Settings
+  };
+
+  const HeaderIcon = viewHeaderIconMap[currentView] || Package;
+
+  const shoppingListByCategory = useMemo(() => {
+    const grouped = shoppingList.reduce<Record<string, typeof shoppingList>>((acc, item) => {
+      const categoryId = item.category || 'others';
+      if (!acc[categoryId]) acc[categoryId] = [];
+      acc[categoryId].push(item);
+      return acc;
+    }, {});
+
+    const collator = new Intl.Collator(lang === 'pt' ? 'pt-BR' : 'en-US');
+
+    return Object.entries(grouped)
+      .map(([categoryId, items]) => {
+        const category = CATEGORIES.find(c => c.id === categoryId);
+        return {
+          categoryId,
+          categoryLabel: getCategoryLabel(categoryId, lang),
+          categoryIcon: category?.icon || '📦',
+          items: [...items].sort((a, b) => collator.compare(a.name, b.name))
+        };
+      })
+      .sort((a, b) => collator.compare(a.categoryLabel, b.categoryLabel));
+  }, [shoppingList, lang]);
+
+  useEffect(() => {
+    setShoppingCategoryExpanded(prev => {
+      const next: Record<string, boolean> = {};
+      shoppingListByCategory.forEach(({ categoryId }) => {
+        next[categoryId] = prev[categoryId] ?? true;
+      });
+      return next;
+    });
+  }, [shoppingListByCategory]);
+
   // View de Erro de Banco de Dados (Tabelas não encontradas)
   if (dbTableError) {
     return (
@@ -925,7 +971,7 @@ Ao chamar updatePantryQuantity:
           {[
             { id: 'dashboard' as ViewType, label: t('dashboard'), icon: LayoutDashboard },
             { id: 'pantry' as ViewType, label: t('pantry'), icon: Package },
-            { id: 'shopping' as ViewType, label: t('shopping'), icon: CheckCircle2 },
+            { id: 'shopping' as ViewType, label: t('shopping'), icon: ShoppingBasket },
             { id: 'ai' as ViewType, label: t('ai'), icon: Sparkles },
             { id: 'settings' as ViewType, label: t('settings'), icon: Settings }
           ].map(item => {
@@ -954,21 +1000,29 @@ Ao chamar updatePantryQuantity:
         </div>
 
         <div className="mt-auto space-y-3">
-          <div className="bg-white rounded-2xl p-4 border border-violet-100">
-            <p className="text-[11px] font-black uppercase tracking-wider text-violet-600">{t('totalItems')}</p>
+          <button onClick={() => setCurrentView('pantry')} className="w-full text-left bg-white rounded-2xl p-4 border border-violet-100 hover:border-violet-200 transition-all cursor-pointer active:scale-[0.99]">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-violet-600">{t('totalItems')}</p>
+              <Package size={16} className="text-violet-500" />
+            </div>
             <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border border-indigo-100">
-            <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600">{t('missingItems')}</p>
+          </button>
+          <button onClick={() => setCurrentView('shopping')} className="w-full text-left bg-white rounded-2xl p-4 border border-indigo-100 hover:border-indigo-200 transition-all cursor-pointer active:scale-[0.99]">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600">{t('missingItems')}</p>
+              <ShoppingBasket size={16} className="text-indigo-500" />
+            </div>
             <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-          </div>
+          </button>
         </div>
       </aside>
 
       <div className="flex flex-col min-h-screen pb-24 lg:pb-0 lg:min-h-0 flex-1 relative">
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 p-4 lg:px-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-violet-100 rounded-xl text-violet-600"><Package size={20} /></div>
+          <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
+            <HeaderIcon size={20} />
+          </div>
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -1018,14 +1072,20 @@ Ao chamar updatePantryQuantity:
 
             <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
               <div className="grid grid-cols-2 gap-4 lg:hidden">
-                <div className="bg-violet-50 p-4 rounded-3xl border border-violet-100">
-                  <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                <button onClick={() => setCurrentView('pantry')} className="text-left bg-violet-50 p-4 rounded-3xl border border-violet-100 cursor-pointer active:scale-[0.99] transition-all">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-violet-700 font-bold uppercase tracking-wider">{t('totalItems')}</p>
+                    <Package size={16} className="text-violet-600" />
+                  </div>
                   <p className="text-3xl font-black text-violet-900">{pantry.length}</p>
-                </div>
-                <div onClick={() => setCurrentView('shopping')} className="bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer">
-                  <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                </button>
+                <button onClick={() => setCurrentView('shopping')} className="text-left bg-indigo-50 p-4 rounded-3xl border border-indigo-100 cursor-pointer active:scale-[0.99] transition-all">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">{t('missingItems')}</p>
+                    <ShoppingBasket size={16} className="text-indigo-600" />
+                  </div>
                   <p className="text-3xl font-black text-indigo-900">{shoppingList.length}</p>
-                </div>
+                </button>
               </div>
 
               <section className="lg:col-span-3">
@@ -1099,31 +1159,58 @@ Ao chamar updatePantryQuantity:
 
         {currentView === 'shopping' && (
           <div className="space-y-4 pb-32 lg:pb-8">
-            <h2 className="text-2xl font-black text-gray-900">{t('shopping')}</h2>
-            <div className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
-            {shoppingList.map(item => (
-              <div key={item.id} className={`bg-white border-2 p-4 rounded-3xl flex flex-col gap-4 ${selectedShopItems[item.id] ? 'border-violet-500 bg-violet-50/30' : 'border-gray-50'}`}>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setSelectedShopItems(prev => ({...prev, [item.id]: !prev[item.id]}))} className={selectedShopItems[item.id] ? 'text-violet-600' : 'text-gray-300'}>
-                    {selectedShopItems[item.id] ? <CheckCircle2 size={28} /> : <Circle size={28} />}
-                  </button>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-gray-800">{item.name}</h4>
-                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">+{item.neededQuantity} {getUnitLabel(item.unit, lang)}</p>
+            <div className="space-y-4">
+              {shoppingListByCategory.map(group => {
+                const isExpanded = shoppingCategoryExpanded[group.categoryId];
+                return (
+                  <div key={group.categoryId} className="bg-white border border-gray-100 rounded-3xl p-4">
+                    <button
+                      onClick={() => setShoppingCategoryExpanded(prev => ({ ...prev, [group.categoryId]: !isExpanded }))}
+                      className="w-full flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 text-left">
+                        <span className="text-2xl">{group.categoryIcon}</span>
+                        <div>
+                          <p className="font-black text-gray-900">{group.categoryLabel}</p>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{group.items.length} item(ns)</p>
+                        </div>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="mt-4 space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0">
+                        {group.items.map(item => (
+                          <div key={item.id} className={`bg-white border-2 p-4 rounded-3xl flex flex-col gap-4 ${selectedShopItems[item.id] ? 'border-violet-500 bg-violet-50/30' : 'border-gray-50'}`}>
+                            <div className="flex items-center gap-4">
+                              <button onClick={() => setSelectedShopItems(prev => ({...prev, [item.id]: !prev[item.id]}))} className={selectedShopItems[item.id] ? 'text-violet-600' : 'text-gray-300'}>
+                                {selectedShopItems[item.id] ? <CheckCircle2 size={28} /> : <Circle size={28} />}
+                              </button>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-800">{item.name}</h4>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">+{item.neededQuantity} {getUnitLabel(item.unit, lang)}</p>
+                              </div>
+                            </div>
+                            {selectedShopItems[item.id] && (
+                              <div className="flex items-center justify-between p-3 bg-white rounded-2xl border border-violet-100">
+                                <p className="text-xs font-bold text-violet-700">{t('purchasedQty')}:</p>
+                                <div className="flex items-center gap-3">
+                                  <button onClick={() => setShopQuantities(prev => ({...prev, [item.id]: Math.max(0, (shopQuantities[item.id] || item.neededQuantity) - 1)}))} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center"><Minus size={14}/></button>
+                                  <span className="font-black">{shopQuantities[item.id] !== undefined ? shopQuantities[item.id] : item.neededQuantity}</span>
+                                  <button onClick={() => setShopQuantities(prev => ({...prev, [item.id]: (shopQuantities[item.id] || item.neededQuantity) + 1}))} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center"><Plus size={14}/></button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-                {selectedShopItems[item.id] && (
-                  <div className="flex items-center justify-between p-3 bg-white rounded-2xl border border-violet-100">
-                     <p className="text-xs font-bold text-violet-700">{t('purchasedQty')}:</p>
-                     <div className="flex items-center gap-3">
-                       <button onClick={() => setShopQuantities(prev => ({...prev, [item.id]: Math.max(0, (shopQuantities[item.id] || item.neededQuantity) - 1)}))} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center"><Minus size={14}/></button>
-                       <span className="font-black">{shopQuantities[item.id] !== undefined ? shopQuantities[item.id] : item.neededQuantity}</span>
-                       <button onClick={() => setShopQuantities(prev => ({...prev, [item.id]: (shopQuantities[item.id] || item.neededQuantity) + 1}))} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center"><Plus size={14}/></button>
-                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
             </div>
             {Object.values(selectedShopItems).some(v => v) && (
               <div className="fixed bottom-24 left-4 right-4 z-[60] lg:static lg:bottom-auto lg:left-auto lg:right-auto lg:mt-2 lg:max-w-sm lg:ml-auto">
