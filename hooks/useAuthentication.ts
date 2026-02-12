@@ -5,7 +5,6 @@ import { User, ViewType, Product } from '../types';
 interface UseAuthenticationParams {
   supabase: SupabaseClient;
   isConfigured: boolean;
-  googleClientId: string;
   loadPantryData: (pantryId: string) => Promise<void>;
   setCurrentView: React.Dispatch<React.SetStateAction<ViewType>>;
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -18,7 +17,6 @@ interface UseAuthenticationParams {
 export function useAuthentication({
   supabase,
   isConfigured,
-  googleClientId,
   loadPantryData,
   setCurrentView,
   setCurrentUser,
@@ -27,6 +25,7 @@ export function useAuthentication({
   setDbTableError,
   currentView
 }: UseAuthenticationParams) {
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');

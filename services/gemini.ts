@@ -1,11 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 import { Product, Language } from '../types';
 
-const apiKey = import.meta.env.VITE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+export const API_KEY = import.meta.env.VITE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const edgeFunctionBase = supabaseUrl ? `${supabaseUrl}/functions/v1` : '';
 
-const ai = new GoogleGenAI({ apiKey: apiKey || 'temporary-placeholder' });
+const ai = new GoogleGenAI({ apiKey: API_KEY || 'temporary-placeholder' });
 
 const getLocalizedFallbackMessage = (lang: Language) => (
   lang === 'en'
@@ -31,7 +31,7 @@ export const getSmartSuggestions = async (pantry: Product[], lang: Language = 'p
     }
   }
 
-  if (!apiKey) return getLocalizedFallbackMessage(lang);
+  if (!API_KEY) return getLocalizedFallbackMessage(lang);
 
   try {
     const productsList = pantry
@@ -56,7 +56,7 @@ export const getSmartSuggestions = async (pantry: Product[], lang: Language = 'p
 };
 
 export const categorizeProduct = async (productName: string) => {
-  if (!apiKey) return 'Outros';
+  if (!API_KEY) return 'Outros';
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
