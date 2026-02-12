@@ -14,6 +14,7 @@ import { AuthScreen } from './components/screens/AuthScreen';
 import { MainAppLayout } from './components/screens/MainAppLayout';
 import { ProductFormData, useProductActions } from './hooks/useProductActions';
 import { useAuthentication } from './hooks/useAuthentication';
+import { useDatabaseSetup } from './hooks/useDatabaseSetup';
 const APP_ENV = import.meta.env;
 
 const SUPABASE_URL = APP_ENV.VITE_SUPABASE_URL || '';
@@ -28,39 +29,6 @@ const supabase = createClient(
   SUPABASE_KEY || 'placeholder'
 );
 
-const SQL_SETUP_SCRIPT = `-- SCRIPT DE INICIALIZAÇÃO SMART PANTRY
--- Copie e cole no SQL Editor do seu Dashboard do Supabase
-
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  pantry_id TEXT NOT NULL,
-  password TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.pantry_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  pantry_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  category TEXT,
-  current_quantity NUMERIC DEFAULT 0,
-  min_quantity NUMERIC DEFAULT 0,
-  unit TEXT,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_pantry_items_pantry_id ON public.pantry_items(pantry_id);
-
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pantry_items ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Permitir tudo para profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir tudo para pantry_items" ON public.pantry_items FOR ALL USING (true) WITH CHECK (true);
-`;
 
 function decodeJwt(token: string) {
   try {
@@ -104,6 +72,10 @@ const App: React.FC = () => {
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
   const t = (key: TranslationKey) => translations[lang][key];
 
+  const { sqlSetupScript, supabaseDashboardUrl, handleCopySql } = useDatabaseSetup({
+    supabaseUrl: SUPABASE_URL
+  });
+
   useEffect(() => {
     const savedLang = localStorage.getItem('app_lang');
     if (savedLang) setLang(savedLang as Language);
@@ -122,11 +94,6 @@ const App: React.FC = () => {
 
 
 
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(SQL_SETUP_SCRIPT);
-    alert("Script SQL copiado com sucesso!");
-  };
 
 
   const handleCloseModal = () => {
@@ -212,8 +179,8 @@ const App: React.FC = () => {
     return (
       <DbSetupErrorScreen
         dbTableError={dbTableError}
-        sqlSetupScript={SQL_SETUP_SCRIPT}
-        supabaseUrl={SUPABASE_URL}
+        sqlSetupScript={sqlSetupScript}
+        supabaseUrl={supabaseDashboardUrl}
         onCopySql={handleCopySql}
       />
     );
