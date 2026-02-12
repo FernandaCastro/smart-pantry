@@ -30,7 +30,7 @@ import {
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
 import { Product, ViewType, Unit, User, Language } from './types';
-import { CATEGORIES, UNITS, getCategoryLabel, getUnitLabel } from './constants';
+import { CATEGORIES, UNITS, getCategoryLabel, getUnitLabel, normalizeUnitId } from './constants';
 import { getSmartSuggestions } from './services/gemini';
 import { translations, TranslationKey } from './i18n';
 import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from './voiceUtils';
@@ -120,11 +120,7 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
   return buffer;
 }
 
-const normalizeStoredUnit = (rawUnit: unknown): Unit => {
-  if (rawUnit === 'pacote') return 'package';
-  if (rawUnit === 'caixa') return 'box';
-  return (UNITS.includes(rawUnit as Unit) ? rawUnit : 'un') as Unit;
-};
+const normalizeStoredUnit = (rawUnit: unknown): Unit => normalizeUnitId(rawUnit);
 
 const App: React.FC = () => {
   type VoiceIntent = 'consume' | 'add';
@@ -977,7 +973,7 @@ Ao chamar updatePantryQuantity:
           <h1 className="font-bold text-gray-800">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
         </div>
         <div className="flex items-center gap-2">
-           <button onClick={() => setLang(l => l === 'pt' ? 'en' : 'pt')} className="p-2 text-gray-400 hover:text-violet-500 transition-colors"><Languages size={20} /></button>
+           <button onClick={() => setLang(l => { const next = l === 'pt' ? 'en' : 'pt'; localStorage.setItem('app_lang', next); return next; })} className="p-2 text-gray-400 hover:text-violet-500 transition-colors"><Languages size={20} /></button>
            <button onClick={() => setCurrentView('settings')} className="p-2 text-gray-400 hover:text-violet-500 transition-colors"><Settings size={20} /></button>
         </div>
       </header>
@@ -1097,6 +1093,7 @@ Ao chamar updatePantryQuantity:
                   </button>
                   <div className="flex-1">
                     <h4 className="font-bold text-gray-800">{item.name}</h4>
+                    <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">+{item.neededQuantity} {getUnitLabel(item.unit, lang)}</p>
                   </div>
                 </div>
                 {selectedShopItems[item.id] && (

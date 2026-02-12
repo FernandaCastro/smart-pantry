@@ -54,10 +54,20 @@ const UNIT_LABELS: Record<Language, Record<Unit, string>> = {
   },
 };
 
+
+export const normalizeUnitId = (rawUnit: unknown): Unit => {
+  const normalized = String(rawUnit || '').trim().toLowerCase();
+  if (normalized === 'pacote') return 'package';
+  if (normalized === 'caixa') return 'box';
+  if (UNITS.includes(normalized as Unit)) return normalized as Unit;
+  return 'un';
+};
+
 export const getCategoryLabel = (categoryId: string, lang: Language) => {
   return CATEGORY_LABELS[lang][categoryId] || CATEGORY_LABELS[lang].outros;
 };
 
-export const getUnitLabel = (unit: Unit, lang: Language) => {
-  return UNIT_LABELS[lang][unit] || unit;
+export const getUnitLabel = (unit: unknown, lang: Language) => {
+  const normalizedUnit = normalizeUnitId(unit);
+  return UNIT_LABELS[lang][normalizedUnit] || normalizedUnit;
 };
