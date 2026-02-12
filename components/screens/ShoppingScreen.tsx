@@ -1,18 +1,16 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronDown, Circle, Loader2, Minus, Plus } from 'lucide-react';
-import { getUnitLabel } from '../../constants';
+import { CATEGORIES, getCategoryLabel, getUnitLabel } from '../../constants';
 import { TranslationKey } from '../../i18n';
-import { Language, ShoppingCategoryGroup, ShoppingItem } from '../../types';
+import { Language, Product, ShoppingItem } from '../../types';
 
 interface ShoppingScreenProps {
-  shoppingListByCategory: ShoppingCategoryGroup[];
-  shoppingCategoryExpanded: Record<string, boolean>;
+  pantry: Product[];
   selectedShopItems: Record<string, boolean>;
   shopQuantities: Record<string, number>;
   lang: Language;
   isLoading: boolean;
   t: (key: TranslationKey) => string;
-  onToggleShoppingCategory: (categoryId: string) => void;
   onToggleSelectedShopItem: (itemId: string) => void;
   onDecreaseShopQuantity: (item: ShoppingItem) => void;
   onIncreaseShopQuantity: (item: ShoppingItem) => void;
@@ -20,19 +18,58 @@ interface ShoppingScreenProps {
 }
 
 export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
-  shoppingListByCategory,
-  shoppingCategoryExpanded,
+  pantry,
   selectedShopItems,
   shopQuantities,
   lang,
   isLoading,
   t,
-  onToggleShoppingCategory,
   onToggleSelectedShopItem,
   onDecreaseShopQuantity,
   onIncreaseShopQuantity,
   onFinishPurchase
 }) => {
+  const [shoppingCategoryExpanded, setShoppingCategoryExpanded] = useState<Record<string, boolean>>({});
+
+  const shoppingList = useMemo(() => {
+    return pantry
+      .filter(p => p.currentQuantity < p.minQuantity)
+      .map(p => ({ ...p, neededQuantity: Math.max(0, p.minQuantity - p.currentQuantity) }));
+  }, [pantry]);
+
+  const shoppingListByCategory = useMemo(() => {
+    const grouped = shoppingList.reduce<Record<string, typeof shoppingList>>((acc, item) => {
+      const categoryId = item.category || 'others';
+      if (!acc[categoryId]) acc[categoryId] = [];
+      acc[categoryId].push(item);
+      return acc;
+    }, {});
+
+    const collator = new Intl.Collator(lang === 'pt' ? 'pt-BR' : 'en-US');
+
+    return Object.entries(grouped)
+      .map(([categoryId, items]) => {
+        const category = CATEGORIES.find(c => c.id === categoryId);
+        return {
+          categoryId,
+          categoryLabel: getCategoryLabel(categoryId, lang),
+          categoryIcon: category?.icon || '📦',
+          items: [...items].sort((a, b) => collator.compare(a.name, b.name))
+        };
+      })
+      .sort((a, b) => collator.compare(a.categoryLabel, b.categoryLabel));
+  }, [shoppingList, lang]);
+
+  useEffect(() => {
+    setShoppingCategoryExpanded(prev => {
+      const next: Record<string, boolean> = {};
+      shoppingListByCategory.forEach(({ categoryId }) => {
+        next[categoryId] = prev[categoryId] ?? true;
+      });
+      return next;
+    });
+  }, [shoppingListByCategory]);
+
   return (
     <div className="space-y-4 pb-32 lg:pb-8">
       <div className="space-y-4">
@@ -41,7 +78,7 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
           return (
             <div key={group.categoryId} className="bg-[var(--sp-white)] border border-[var(--sp-gray-100)] rounded-3xl p-4">
               <button
-                onClick={() => onToggleShoppingCategory(group.categoryId)}
+                onClick={() => setShoppingCategoryExpanded(prev => ({ ...prev, [group.categoryId]: !prev[group.categoryId] }))}
                 className="w-full flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 text-left">

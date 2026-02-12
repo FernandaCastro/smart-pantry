@@ -1,9 +1,19 @@
 import { GoogleGenAI, LiveServerMessage, Modality, Type } from '@google/genai';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { TranslationKey } from '../i18n';
+import { Product, Unit, User } from '../types';
+import { findBestPantryItemByName, inferVoiceIntent, normalizeVoiceCategory, normalizeVoiceUnit } from '../voiceUtils';
+import { createPantryItem, updatePantryItemQuantity } from './useProductActions';
 
 interface UseVoiceAssistantParams {
   apiKey: string;
-  onUpdatePantry: (args: any) => Promise<any>;
+  currentUser: User | null;
+  isConfigured: boolean;
+  pantryRef: MutableRefObject<Product[]>;
+  supabase: SupabaseClient;
+  loadPantryData: (pantryId: string) => Promise<void>;
+  t: (key: TranslationKey) => string;
 }
 
 function encode(bytes: Uint8Array) {
@@ -30,7 +40,7 @@ async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: 
   return buffer;
 }
 
-export function useVoiceAssistant({ apiKey, onUpdatePantry }: UseVoiceAssistantParams) {
+export function useVoiceAssistant({ apiKey, currentUser, isConfigured, pantryRef, supabase, loadPantryData, t }: UseVoiceAssistantParams) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceLog, setVoiceLog] = useState('');
   const sessionRef = useRef<any>(null);
@@ -38,6 +48,88 @@ export function useVoiceAssistant({ apiKey, onUpdatePantry }: UseVoiceAssistantP
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const voiceQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const applyVoicePantryUpdate = useCallback(async (args: any) => {
+    if (!currentUser || !isConfigured) {
+      return { status: 'error', message: 'Sessão indisponível.' };
+    }
+
+    const productName = String(args?.productName || '').trim();
+    const amount = Number(args?.amount);
+    const intent = inferVoiceIntent(args);
+    const unit = normalizeVoiceUnit(args?.unit);
+    const category = normalizeVoiceCategory(args?.category);
+
+    if (!productName || !Number.isFinite(amount) || amount <= 0 || !intent) {
+      const message = 'Comando de voz inválido.';
+      setVoiceLog(message);
+      return { status: 'error', message };
+    }
+
+    try {
+      const existingItem = findBestPantryItemByName(pantryRef.current, productName);
+
+      if (!existingItem && intent === 'consume') {
+        const message = t('productNotFound');
+        setVoiceLog(message);
+        return { status: 'error', message };
+      }
+
+      if (!existingItem && intent === 'add') {
+        const payload = {
+          pantry_id: currentUser.pantryId,
+          name: productName,
+          category,
+          current_quantity: amount,
+          min_quantity: 1,
+          unit,
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await createPantryItem({
+          supabase,
+          payload: payload as {
+            pantry_id: string;
+            name: string;
+            category: string;
+            current_quantity: number;
+            min_quantity: number;
+            unit: Unit;
+            updated_at: string;
+          }
+        });
+
+        if (error) throw error;
+
+        await loadPantryData(currentUser.pantryId);
+        const message = t('productCreated').replace('{name}', productName);
+        setVoiceLog(message);
+        return { status: 'created', message, name: productName, quantity: amount, category, unit };
+      }
+
+      const target = existingItem as Product;
+      const newQty = intent === 'consume'
+        ? Math.max(0, target.currentQuantity - amount)
+        : target.currentQuantity + amount;
+
+      const { error } = await updatePantryItemQuantity({
+        supabase,
+        id: target.id,
+        quantity: newQty
+      });
+
+      if (error) throw error;
+
+      await loadPantryData(currentUser.pantryId);
+      const message = t('quantityUpdated').replace('{name}', target.name);
+      setVoiceLog(message);
+      return { status: 'updated', message, id: target.id, quantity: newQty, category: target.category, unit: target.unit };
+    } catch (error: any) {
+      const message = `Erro ao atualizar estoque por voz: ${error.message}`;
+      setVoiceLog(message);
+      return { status: 'error', message };
+    }
+  }, [currentUser, isConfigured, pantryRef, t, supabase, loadPantryData]);
 
   const stopVoiceSession = useCallback(() => {
     setIsVoiceActive(false);
@@ -72,14 +164,14 @@ export function useVoiceAssistant({ apiKey, onUpdatePantry }: UseVoiceAssistantP
   const enqueueVoiceToolCall = useCallback((functionCall: any, sessionPromise: Promise<any>) => {
     voiceQueueRef.current = voiceQueueRef.current
       .then(async () => {
-        const result = await onUpdatePantry(functionCall.args);
+        const result = await applyVoicePantryUpdate(functionCall.args);
         const session = await sessionPromise;
         session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: result } });
       })
       .catch((error) => {
         console.error('Erro na fila de comandos de voz:', error);
       });
-  }, [onUpdatePantry]);
+  }, [applyVoicePantryUpdate]);
 
   const startVoiceSession = useCallback(async () => {
     if (isVoiceActive) return;
