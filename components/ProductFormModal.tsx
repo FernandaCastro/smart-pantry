@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
-import { CATEGORIES, UNITS } from '../constants';
-import { Unit } from '../types';
+import { CATEGORIES, UNITS, getCategoryLabel, getUnitLabel } from '../constants';
+import { Language, Unit } from '../types';
 
 interface ProductFormData {
   name: string;
@@ -20,6 +20,7 @@ interface ProductFormModalProps {
   onSave: () => void;
   onFormChange: (next: ProductFormData) => void;
   t: (key: string) => string;
+  lang: Language;
 }
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
@@ -31,6 +32,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onSave,
   onFormChange,
   t,
+  lang,
 }) => {
   if (!isOpen) return null;
 
@@ -48,13 +50,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('catLabel')}</label>
               <select className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.category} onChange={e => onFormChange({ ...formData, category: e.target.value })}>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {getCategoryLabel(c.id, lang)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t('unitLabel')}</label>
               <select className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-violet-500 outline-none" value={formData.unit} onChange={e => onFormChange({ ...formData, unit: e.target.value as Unit })}>
-                {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                {UNITS.map(u => <option key={u} value={u}>{getUnitLabel(u, lang)}</option>)}
               </select>
             </div>
           </div>

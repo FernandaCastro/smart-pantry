@@ -73,11 +73,12 @@ export const normalizeVoiceUnit = (rawUnit: unknown): Unit => {
     gramas: 'g',
     mililitro: 'ml',
     mililitros: 'ml',
-    pack: 'pacote',
-    pacote: 'pacote',
-    pacotes: 'pacote',
-    box: 'caixa',
-    caixas: 'caixa'
+    pack: 'package',
+    package: 'package',
+    pacote: 'package',
+    pacotes: 'package',
+    box: 'box',
+    caixas: 'box'
   };
 
   const aliasMatch = unitAliases[normalized];

@@ -1,5 +1,5 @@
 
-export type Unit = 'un' | 'kg' | 'l' | 'g' | 'ml' | 'pacote' | 'caixa';
+export type Unit = 'un' | 'kg' | 'l' | 'g' | 'ml' | 'package' | 'box';
 
 export interface Product {
   id: string;
