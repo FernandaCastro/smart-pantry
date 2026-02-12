@@ -218,7 +218,14 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
       .then(async () => {
         const result = await applyVoicePantryUpdate(functionCall.args);
         const session = await sessionPromise;
-        session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: result } });
+
+        const toolResponse = {
+          ...result,
+          message: undefined,
+          responseLanguage: 'match_user_current_utterance'
+        };
+
+        session.sendToolResponse({ functionResponses: { id: functionCall.id, name: functionCall.name, response: toolResponse } });
       })
       .catch((error) => {
         console.error('Erro na fila de comandos de voz:', error);
@@ -320,8 +327,10 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, supaba
           tools: [{ functionDeclarations: [updateStockTool] }],
           systemInstruction: `Você é o assistente da Despensa Inteligente.
 Regras obrigatórias de idioma:
-1) Detecte o idioma da primeira frase do usuário e mantenha TODAS as respostas nesse mesmo idioma até o fim da sessão.
-2) Nunca misture idiomas e nunca mude automaticamente para português/inglês.
+1) Responda no idioma da fala atual do usuário (pt-BR quando o usuário falar português; en-US quando o usuário falar inglês).
+2) Nunca misture idiomas na mesma resposta.
+3) Não use o idioma do app para decidir a resposta; use apenas o idioma detectado no áudio do usuário.
+4) O campo responseLanguage do tool response é apenas um lembrete para manter o idioma da fala do usuário.
 
 Ao chamar updatePantryQuantity:
 - use intent='consume' para consumo e intent='add' para adição;
