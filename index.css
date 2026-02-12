@@ -72,3 +72,65 @@ body {
 .sp-bottom-nav-surface {
   box-shadow: var(--sp-bottomnav-shadow);
 }
+
+body {
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+body.theme-dark {
+  --sp-white: #0b1220;
+  --sp-black: #020617;
+
+  --sp-slate-50: #0b1220;
+  --sp-slate-100: #111827;
+  --sp-slate-300: #334155;
+  --sp-slate-400: #475569;
+  --sp-slate-500: #64748b;
+  --sp-slate-700: #94a3b8;
+  --sp-slate-900: #f8fafc;
+
+  --sp-gray-50: #0b1220;
+  --sp-gray-100: #111827;
+  --sp-gray-200: #1f2937;
+  --sp-gray-300: #374151;
+  --sp-gray-400: #9ca3af;
+  --sp-gray-500: #cbd5e1;
+  --sp-gray-700: #e2e8f0;
+  --sp-gray-800: #f1f5f9;
+  --sp-gray-900: #f8fafc;
+
+  --sp-violet-50: #1e1b4b;
+  --sp-violet-100: #312e81;
+  --sp-violet-200: #4338ca;
+  --sp-violet-400: #8b5cf6;
+  --sp-violet-500: #a78bfa;
+  --sp-violet-600: #c4b5fd;
+  --sp-violet-700: #ddd6fe;
+  --sp-violet-800: #ede9fe;
+  --sp-violet-900: #f5f3ff;
+
+  --sp-indigo-50: #1e1b4b;
+  --sp-indigo-100: #312e81;
+  --sp-indigo-200: #4338ca;
+  --sp-indigo-500: #818cf8;
+  --sp-indigo-600: #a5b4fc;
+  --sp-indigo-700: #c7d2fe;
+  --sp-indigo-900: #e0e7ff;
+
+  --sp-fuchsia-100: #3b0764;
+  --sp-fuchsia-500: #e879f9;
+
+  --sp-amber-50: #422006;
+  --sp-amber-400: #fcd34d;
+  --sp-amber-500: #f59e0b;
+  --sp-amber-700: #fbbf24;
+
+  --sp-red-100: #450a0a;
+  --sp-red-400: #f87171;
+  --sp-red-500: #ef4444;
+
+  --sp-green-500: #4ade80;
+
+  --sp-header-shadow: 0 14px 35px -25px rgba(129, 140, 248, 0.45);
+  --sp-bottomnav-shadow: 0 -12px 35px -20px rgba(129, 140, 248, 0.35);
+}

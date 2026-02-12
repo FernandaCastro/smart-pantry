@@ -26,7 +26,9 @@ import {
   Terminal,
   ExternalLink,
   Mic,
-  ShoppingBasket
+  ShoppingBasket,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { GoogleGenAI, Modality, Type, LiveServerMessage } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -125,8 +127,10 @@ const normalizeStoredUnit = (rawUnit: unknown): Unit => normalizeUnitId(rawUnit)
 
 const App: React.FC = () => {
   type VoiceIntent = 'consume' | 'add';
+  type ThemeMode = 'light' | 'dark';
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>('light');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
@@ -196,7 +200,17 @@ const App: React.FC = () => {
     
     const savedLang = localStorage.getItem('app_lang');
     if (savedLang) setLang(savedLang as Language);
+
+    const savedTheme = localStorage.getItem('app_theme') as ThemeMode | null;
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      setTheme(savedTheme);
+    }
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('theme-dark', theme === 'dark');
+    localStorage.setItem('app_theme', theme);
+  }, [theme]);
 
   // Sincroniza perfis de logins externos (Google via Supabase)
   const handleExternalProfileSync = async (userData: { email: string, name: string, id: string }) => {
@@ -1046,6 +1060,14 @@ Ao chamar updatePantryQuantity:
                🇺🇸
              </button>
            </div>
+           <button
+             onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+             className="p-2 rounded-xl border border-[var(--sp-violet-200)] bg-[var(--sp-violet-50)] text-[var(--sp-violet-600)] hover:text-[var(--sp-violet-700)] transition-colors"
+             aria-label={theme === 'light' ? 'Ativar tema escuro' : 'Ativar tema claro'}
+             title={theme === 'light' ? 'Tema escuro' : 'Tema claro'}
+           >
+             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+           </button>
            <button onClick={() => setCurrentView('settings')} className="p-2 text-[var(--sp-gray-400)] hover:text-[var(--sp-violet-500)] transition-colors"><Settings size={20} /></button>
         </div>
       </header>
