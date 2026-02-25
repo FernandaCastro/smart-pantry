@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TranslationKey } from '../i18n';
-import { Language, Product, User } from '../types';
+import { Language, User } from '../types';
 import { askVoiceAssistant } from '../services/voiceAssistant';
 
 interface UseVoiceAssistantParams {
@@ -24,7 +24,7 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-export function useVoiceAssistant({ currentUser, isConfigured, lang }: UseVoiceAssistantParams) {
+export function useVoiceAssistant({ currentUser, isConfigured, loadPantryData, lang }: UseVoiceAssistantParams) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceLog, setVoiceLog] = useState('');
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -84,8 +84,12 @@ export function useVoiceAssistant({ currentUser, isConfigured, lang }: UseVoiceA
       }
 
       setVoiceLog(transcript);
-      const response = await askVoiceAssistant(transcript, lang);
-      setVoiceLog(response);
+      const result = await askVoiceAssistant(transcript, lang);
+      setVoiceLog(result.text);
+
+      if (result.actionApplied && currentUser?.pantryId) {
+        await loadPantryData(currentUser.pantryId);
+      }
     };
 
     recognition.onerror = () => {
@@ -101,7 +105,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, lang }: UseVoiceA
     };
 
     recognition.start();
-  }, [currentUser, isConfigured, lang]);
+  }, [currentUser, isConfigured, lang, loadPantryData]);
 
   useEffect(() => {
     return () => {

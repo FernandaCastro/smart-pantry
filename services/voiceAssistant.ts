@@ -1,6 +1,10 @@
 import { Language } from '../types';
 import { supabase } from './supabase';
 
+export interface VoiceAssistantResult {
+  text: string;
+  actionApplied: boolean;
+}
 
 const getUnavailableMessage = (lang: Language) => (
   lang === 'en'
@@ -11,7 +15,7 @@ const getUnavailableMessage = (lang: Language) => (
 export const askVoiceAssistant = async (
   transcript: string,
   lang: Language = 'pt',
-) => {
+): Promise<VoiceAssistantResult> => {
   try {
     const { data, error } = await supabase.functions.invoke('voice-assistant', {
       body: {
@@ -22,16 +26,19 @@ export const askVoiceAssistant = async (
 
     if (error) {
       console.error('Error invoking voice-assistant:', error);
-      return getUnavailableMessage(lang);
+      return { text: getUnavailableMessage(lang), actionApplied: false };
     }
 
     if (data?.text) {
-      return data.text as string;
+      return {
+        text: data.text as string,
+        actionApplied: Boolean(data.action_applied),
+      };
     }
 
-    return getUnavailableMessage(lang);
+    return { text: getUnavailableMessage(lang), actionApplied: false };
   } catch (error) {
     console.error('Unexpected voice-assistant error:', error);
-    return getUnavailableMessage(lang);
+    return { text: getUnavailableMessage(lang), actionApplied: false };
   }
 };

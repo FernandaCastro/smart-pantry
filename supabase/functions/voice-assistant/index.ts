@@ -1,10 +1,20 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { GoogleGenAI } from 'npm:@google/genai';
 
-
 const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
 const MODEL = 'gemini-2.5-flash';
+const ALLOWED_UNITS = new Set(['un', 'kg', 'l', 'g', 'ml', 'package', 'box']);
+
+type VoiceIntent = 'add' | 'consume' | 'none';
+
+interface VoiceAction {
+  intent: VoiceIntent;
+  product_name: string;
+  quantity: number;
+  unit?: string;
+  message?: string;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +59,47 @@ const extractTokenUsage = (usageMetadata: Record<string, unknown> | null | undef
 const estimateTokensFromChars = (requestChars: number, responseChars = 0) => {
   const safeChars = Math.max(0, requestChars) + Math.max(0, responseChars);
   return Math.max(1, Math.ceil(safeChars / 4));
+};
+
+const parseJsonFromModel = (rawText: string): VoiceAction | null => {
+  if (!rawText?.trim()) return null;
+
+  const stripped = rawText
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  const start = stripped.indexOf('{');
+  const end = stripped.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+
+  const maybeJson = stripped.slice(start, end + 1);
+
+  try {
+    const parsed = JSON.parse(maybeJson) as Partial<VoiceAction>;
+    const intent = (parsed.intent || 'none') as VoiceIntent;
+    const productName = String(parsed.product_name || '').trim();
+    const quantity = Number(parsed.quantity || 0);
+    const unit = String(parsed.unit || '').trim().toLowerCase();
+    const message = String(parsed.message || '').trim();
+
+    if (!['add', 'consume', 'none'].includes(intent)) return null;
+
+    return {
+      intent,
+      product_name: productName,
+      quantity: Number.isFinite(quantity) ? quantity : 0,
+      unit,
+      message,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const normalizeUnit = (unit: string | undefined) => {
+  const normalized = String(unit || '').trim().toLowerCase();
+  return ALLOWED_UNITS.has(normalized) ? normalized : 'un';
 };
 
 Deno.serve(async (request) => {
@@ -140,27 +191,112 @@ Deno.serve(async (request) => {
       }, 429);
     }
 
-    const localizedPrompt = lang === 'en'
-      ? `You are a voice assistant for pantry management. User said: "${transcript}". Provide a short, direct response in friendly English with practical next action.`
-      : `Você é um assistente de voz para gestão de despensa. Usuário disse: "${transcript}". Responda de forma curta, direta e amigável em português, com próxima ação prática.`;
+    const modelPrompt = lang === 'en'
+      ? `Extract inventory action from the user's speech and return JSON only with this schema: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","message":"short english message"}. If action is unclear, use intent=none with quantity=0.`
+      : `Extraia a ação de estoque da fala do usuário e responda somente JSON no formato: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","message":"mensagem curta em português"}. Se não estiver claro, use intent=none com quantity=0.`;
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: localizedPrompt,
-      config: { temperature: 0.4 },
+      contents: `${modelPrompt}\n\nTranscription: ${transcript}`,
+      config: { temperature: 0.1 },
     });
 
     const text = aiResponse.text || '';
+    const parsedAction = parseJsonFromModel(text);
+
+    const { data: profile, error: profileError } = await usageClient
+      .from('profiles')
+      .select('pantry_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError || !profile?.pantry_id) {
+      return jsonResponse({ error: 'Failed to resolve user pantry' }, 500);
+    }
+
+    let responseText = parsedAction?.message || (lang === 'en' ? 'Voice command processed.' : 'Comando de voz processado.');
+    let actionApplied = false;
+
+    if (parsedAction && parsedAction.intent !== 'none' && parsedAction.product_name) {
+      const quantity = Math.max(0, Number(parsedAction.quantity || 0));
+      const unit = normalizeUnit(parsedAction.unit);
+
+      if (quantity > 0) {
+        const { data: existingItems, error: existingError } = await usageClient
+          .from('pantry_items')
+          .select('id,name,current_quantity,unit')
+          .eq('pantry_id', profile.pantry_id)
+          .ilike('name', parsedAction.product_name)
+          .limit(1);
+
+        if (!existingError) {
+          const item = existingItems?.[0];
+
+          if (parsedAction.intent === 'add') {
+            if (item) {
+              const newQuantity = Number(item.current_quantity || 0) + quantity;
+              await usageClient
+                .from('pantry_items')
+                .update({ current_quantity: newQuantity, updated_at: new Date().toISOString() })
+                .eq('id', item.id);
+              responseText = lang === 'en'
+                ? `${item.name} updated to ${newQuantity}.`
+                : `${item.name} atualizado para ${newQuantity}.`;
+            } else {
+              await usageClient
+                .from('pantry_items')
+                .insert([{
+                  pantry_id: profile.pantry_id,
+                  name: parsedAction.product_name,
+                  category: 'others',
+                  current_quantity: quantity,
+                  min_quantity: 1,
+                  unit,
+                  updated_at: new Date().toISOString(),
+                }]);
+              responseText = lang === 'en'
+                ? `${parsedAction.product_name} added.`
+                : `${parsedAction.product_name} adicionado.`;
+            }
+            actionApplied = true;
+          }
+
+          if (parsedAction.intent === 'consume') {
+            if (!item) {
+              responseText = lang === 'en'
+                ? `I couldn't find ${parsedAction.product_name} in your pantry.`
+                : `Não encontrei ${parsedAction.product_name} na sua despensa.`;
+            } else {
+              const currentQuantity = Number(item.current_quantity || 0);
+              const newQuantity = Math.max(0, currentQuantity - quantity);
+              await usageClient
+                .from('pantry_items')
+                .update({ current_quantity: newQuantity, updated_at: new Date().toISOString() })
+                .eq('id', item.id);
+              responseText = lang === 'en'
+                ? `${item.name} updated to ${newQuantity}.`
+                : `${item.name} atualizado para ${newQuantity}.`;
+              actionApplied = true;
+            }
+          }
+        }
+      }
+    } else if (!parsedAction) {
+      responseText = lang === 'en'
+        ? 'I could not understand your command. Please try again.'
+        : 'Não consegui entender seu comando. Tente novamente.';
+    }
+
     const usageMetadata = aiResponse.usageMetadata as Record<string, unknown> | undefined;
     const tokenUsage = extractTokenUsage(usageMetadata);
-    const fallbackTotalTokens = estimateTokensFromChars(requestChars, text.length);
+    const fallbackTotalTokens = estimateTokensFromChars(requestChars, responseText.length);
 
     const { error: usageInsertError } = await usageClient.from('ai_usage').insert({
       user_id: userId,
       feature: FEATURE,
       request_chars: requestChars,
-      response_chars: text.length,
+      response_chars: responseText.length,
       request_tokens: tokenUsage.requestTokens,
       response_tokens: tokenUsage.responseTokens,
       total_tokens: tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : fallbackTotalTokens,
@@ -172,7 +308,7 @@ Deno.serve(async (request) => {
       console.error('Failed to log ai usage:', usageInsertError);
     }
 
-    return jsonResponse({ text }, 200);
+    return jsonResponse({ text: responseText, action_applied: actionApplied }, 200);
   } catch (error) {
     console.error('voice-assistant error:', error);
     return jsonResponse({ error: 'Failed to process voice request' }, 500);
