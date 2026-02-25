@@ -233,28 +233,36 @@ export function useAuthentication({
 
   useEffect(() => {
     const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        localStorage.removeItem('current_user');
+        setCurrentUser(null);
+        setCurrentView('auth');
+        return;
+      }
+
       const savedUser = localStorage.getItem('current_user');
       if (savedUser) {
         try {
-          const user = JSON.parse(savedUser);
-          setCurrentUser(user);
-          setCurrentView('dashboard');
-          loadPantryData(user.pantryId);
-          return;
-        } catch (e) {
-          localStorage.removeItem('current_user');
+          const user = JSON.parse(savedUser) as User;
+          if (user.id === session.user.id) {
+            setCurrentUser(user);
+            setCurrentView('dashboard');
+            await loadPantryData(user.pantryId);
+            return;
+          }
+        } catch (_e) {
+          // ignore invalid local cache and fallback to profile sync
         }
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { email, user_metadata, id } = session.user;
-        handleExternalProfileSync({
-          email: email || '',
-          name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
-          id,
-        });
-      }
+      const { email, user_metadata, id } = session.user;
+      await handleExternalProfileSync({
+        email: email || '',
+        name: user_metadata.full_name || user_metadata.user_name || 'Usuário',
+        id,
+      });
     };
 
     checkSession();
