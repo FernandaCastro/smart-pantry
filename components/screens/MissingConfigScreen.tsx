@@ -24,7 +24,7 @@ export const MissingConfigScreen: React.FC<MissingConfigScreenProps> = ({
         </p>
         <div className="w-full p-4 bg-[var(--sp-gray-50)] rounded-2xl text-left font-mono text-xs text-[var(--sp-gray-400)] mb-8 border border-[var(--sp-gray-100)]">
           SUPABASE_URL: {supabaseUrl ? 'OK' : 'Pendente'}<br/>
-          SUPABASE_KEY: {supabaseKey ? 'OK' : 'Pendente'}<br/>
+          SUPABASE_ANON_KEY: {supabaseKey ? 'OK' : 'Pendente'}<br/>
           GOOGLE_ID: {googleClientId ? 'OK' : 'Pendente'}
         </div>
         <p className="text-xs text-[var(--sp-gray-400)]">Verifique o arquivo .env para continuar.</p>
