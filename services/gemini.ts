@@ -1,6 +1,11 @@
 import { Product, Language } from '../types';
 import { supabase } from './supabase';
 
+interface PantrySuggestionInput {
+  name: string;
+  currentQuantity: number;
+}
+
 const getUnavailableMessage = (lang: Language) => (
   lang === 'en'
     ? 'AI unavailable. Please try again later.'
@@ -8,9 +13,14 @@ const getUnavailableMessage = (lang: Language) => (
 );
 
 export const getSmartSuggestions = async (pantry: Product[], lang: Language = 'pt') => {
+  const minimalPantry: PantrySuggestionInput[] = pantry.map((product) => ({
+    name: product.name,
+    currentQuantity: product.currentQuantity,
+  }));
+
   try {
     const { data, error } = await supabase.functions.invoke('ai-suggestions', {
-      body: { pantry, lang },
+      body: { pantry: minimalPantry, lang },
     });
 
     if (error) {

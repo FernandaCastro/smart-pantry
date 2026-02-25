@@ -4,7 +4,6 @@ import { GoogleGenAI } from 'npm:@google/genai';
 interface PantryItemInput {
   name: string;
   currentQuantity: number;
-  unit: string;
 }
 
 const DAILY_LIMIT = 30;
@@ -95,7 +94,7 @@ Deno.serve(async (request) => {
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const productsList = (pantry || [])
-      .map((p) => `${p.name} (${p.currentQuantity} ${p.unit})`)
+      .map((p) => `${p.name} (${p.currentQuantity})`)
       .join(', ');
 
     const localizedPrompt = lang === 'en'
