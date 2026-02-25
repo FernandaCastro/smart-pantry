@@ -1,10 +1,6 @@
-import { Language, Product } from '../types';
+import { Language } from '../types';
 import { supabase } from './supabase';
 
-interface PantryVoiceInput {
-  name: string;
-  currentQuantity: number;
-}
 
 const getUnavailableMessage = (lang: Language) => (
   lang === 'en'
@@ -14,19 +10,12 @@ const getUnavailableMessage = (lang: Language) => (
 
 export const askVoiceAssistant = async (
   transcript: string,
-  pantry: Product[],
   lang: Language = 'pt',
 ) => {
-  const minimalPantry: PantryVoiceInput[] = pantry.map((product) => ({
-    name: product.name,
-    currentQuantity: product.currentQuantity,
-  }));
-
   try {
     const { data, error } = await supabase.functions.invoke('voice-assistant', {
       body: {
         transcript,
-        pantry: minimalPantry,
         lang,
       },
     });

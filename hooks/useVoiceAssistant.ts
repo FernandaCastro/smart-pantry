@@ -7,7 +7,6 @@ import { askVoiceAssistant } from '../services/voiceAssistant';
 interface UseVoiceAssistantParams {
   currentUser: User | null;
   isConfigured: boolean;
-  pantryRef: MutableRefObject<Product[]>;
   supabase: SupabaseClient;
   loadPantryData: (pantryId: string) => Promise<void>;
   t: (key: TranslationKey) => string;
@@ -25,7 +24,7 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, lang }: UseVoiceAssistantParams) {
+export function useVoiceAssistant({ currentUser, isConfigured, lang }: UseVoiceAssistantParams) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceLog, setVoiceLog] = useState('');
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -85,7 +84,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, lang }
       }
 
       setVoiceLog(transcript);
-      const response = await askVoiceAssistant(transcript, pantryRef.current, lang);
+      const response = await askVoiceAssistant(transcript, lang);
       setVoiceLog(response);
     };
 
@@ -102,7 +101,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, pantryRef, lang }
     };
 
     recognition.start();
-  }, [currentUser, isConfigured, lang, pantryRef]);
+  }, [currentUser, isConfigured, lang]);
 
   useEffect(() => {
     return () => {

@@ -1,10 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { GoogleGenAI } from 'npm:@google/genai';
 
-interface PantryItemInput {
-  name: string;
-  currentQuantity: number;
-}
 
 const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
@@ -99,9 +95,8 @@ Deno.serve(async (request) => {
     }
 
     const userId = authData.user.id;
-    const { transcript, pantry = [], lang = 'pt' } = await request.json() as {
+    const { transcript, lang = 'pt' } = await request.json() as {
       transcript?: string;
-      pantry?: PantryItemInput[];
       lang?: 'pt' | 'en';
     };
 
@@ -111,7 +106,7 @@ Deno.serve(async (request) => {
       }, 400);
     }
 
-    const requestChars = JSON.stringify({ transcript, pantry, lang }).length;
+    const requestChars = JSON.stringify({ transcript, lang }).length;
     const estimatedRequestTokens = estimateTokensFromChars(requestChars);
     const last24Hours = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
 
@@ -145,11 +140,9 @@ Deno.serve(async (request) => {
       }, 429);
     }
 
-    const pantryContext = pantry.map((p) => `${p.name} (${p.currentQuantity})`).join(', ');
-
     const localizedPrompt = lang === 'en'
-      ? `You are a voice assistant for pantry management. User said: "${transcript}". Pantry items: ${pantryContext || 'no pantry items'}. Provide a short, direct response in friendly English with practical next action.`
-      : `Você é um assistente de voz para gestão de despensa. Usuário disse: "${transcript}". Itens da despensa: ${pantryContext || 'sem itens na despensa'}. Responda de forma curta, direta e amigável em português, com próxima ação prática.`;
+      ? `You are a voice assistant for pantry management. User said: "${transcript}". Provide a short, direct response in friendly English with practical next action.`
+      : `Você é um assistente de voz para gestão de despensa. Usuário disse: "${transcript}". Responda de forma curta, direta e amigável em português, com próxima ação prática.`;
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
