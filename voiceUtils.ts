@@ -57,9 +57,20 @@ const NON_PRODUCT_TOKENS = new Set([
   'menos', 'que', 'what', 'please', 'porfavor', 'favor'
 ]);
 
+const QUANTITY_TOKENS = new Set([
+  // PT-BR
+  'zero', 'um', 'uma', 'dois', 'duas', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
+  'onze', 'doze', 'treze', 'catorze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove',
+  'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa', 'cem', 'cento',
+  // EN
+  'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+  'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred'
+]);
+
 const singularizeWord = (word: string) => {
   const normalized = normalizeText(word);
-  if (!normalized || NON_PRODUCT_TOKENS.has(normalized)) return normalized;
+  if (!normalized || NON_PRODUCT_TOKENS.has(normalized) || QUANTITY_TOKENS.has(normalized)) return normalized;
 
   if (normalized.endsWith('zes') && normalized.length > 4) return `${normalized.slice(0, -3)}z`;
   if (normalized.endsWith('tes') && normalized.length > 4) return normalized.slice(0, -1);

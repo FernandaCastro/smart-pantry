@@ -43,3 +43,10 @@ test('normalizeVoiceTranscriptToSingular standardizes product tokens to singular
     'adicionar 2 banana e 3 tomate por favor'
   );
 });
+
+
+test('normalizeVoiceTranscriptToSingular preserves quantity words', () => {
+  assert.equal(normalizeVoiceTranscriptToSingular('adicionar seis laranjas'), 'adicionar seis laranja');
+  assert.equal(normalizeVoiceTranscriptToSingular('adicionar duas laranjas'), 'adicionar duas laranja');
+  assert.equal(normalizeVoiceTranscriptToSingular('adicionar tres laranjas'), 'adicionar tres laranja');
+});
