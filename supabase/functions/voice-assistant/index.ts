@@ -5,6 +5,21 @@ const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
 const MODEL = 'gemini-2.5-flash';
 const ALLOWED_UNITS = new Set(['un', 'kg', 'l', 'g', 'ml', 'package', 'box']);
+const ALLOWED_CATEGORIES = new Set([
+  'cereals_grains',
+  'fruits_vegetables',
+  'canned_goods',
+  'meat_fish',
+  'bakery',
+  'cooking_baking',
+  'sweets_savory_snacks',
+  'dairy',
+  'cleaning',
+  'hygiene',
+  'beverages',
+  'frozen',
+  'others',
+]);
 
 type VoiceIntent = 'add' | 'consume' | 'none';
 
@@ -13,6 +28,7 @@ interface VoiceAction {
   product_name: string;
   quantity: number;
   unit?: string;
+  category?: string;
   message?: string;
 }
 
@@ -81,6 +97,7 @@ const parseJsonFromModel = (rawText: string): VoiceAction | null => {
     const productName = String(parsed.product_name || '').trim();
     const quantity = Number(parsed.quantity || 0);
     const unit = String(parsed.unit || '').trim().toLowerCase();
+    const category = String(parsed.category || '').trim().toLowerCase();
     const message = String(parsed.message || '').trim();
 
     if (!['add', 'consume', 'none'].includes(intent)) return null;
@@ -90,6 +107,7 @@ const parseJsonFromModel = (rawText: string): VoiceAction | null => {
       product_name: productName,
       quantity: Number.isFinite(quantity) ? quantity : 0,
       unit,
+      category,
       message,
     };
   } catch {
@@ -100,6 +118,11 @@ const parseJsonFromModel = (rawText: string): VoiceAction | null => {
 const normalizeUnit = (unit: string | undefined) => {
   const normalized = String(unit || '').trim().toLowerCase();
   return ALLOWED_UNITS.has(normalized) ? normalized : 'un';
+};
+
+const normalizeCategory = (category: string | undefined) => {
+  const normalized = String(category || '').trim().toLowerCase();
+  return ALLOWED_CATEGORIES.has(normalized) ? normalized : 'others';
 };
 
 Deno.serve(async (request) => {
@@ -192,8 +215,8 @@ Deno.serve(async (request) => {
     }
 
     const modelPrompt = lang === 'en'
-      ? `Extract inventory action from the user's speech and return JSON only with this schema: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","message":"short english message"}. If action is unclear, use intent=none with quantity=0.`
-      : `Extraia a ação de estoque da fala do usuário e responda somente JSON no formato: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","message":"mensagem curta em português"}. Se não estiver claro, use intent=none com quantity=0.`;
+      ? `Extract inventory action from the user's speech and return JSON only with this schema: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","category":"cereals_grains|fruits_vegetables|canned_goods|meat_fish|bakery|cooking_baking|sweets_savory_snacks|dairy|cleaning|hygiene|beverages|frozen|others","message":"short english message"}. Infer category for the product, mainly when it is a new pantry item. If action is unclear, use intent=none with quantity=0 and category=others.`
+      : `Extraia a ação de estoque da fala do usuário e responda somente JSON no formato: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","category":"cereals_grains|fruits_vegetables|canned_goods|meat_fish|bakery|cooking_baking|sweets_savory_snacks|dairy|cleaning|hygiene|beverages|frozen|others","message":"mensagem curta em português"}. Inferir a categoria do produto, principalmente quando ele for novo na despensa. Se não estiver claro, use intent=none com quantity=0 e category=others.`;
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
@@ -217,10 +240,13 @@ Deno.serve(async (request) => {
 
     let responseText = parsedAction?.message || (lang === 'en' ? 'Voice command processed.' : 'Comando de voz processado.');
     let actionApplied = false;
+    let inferredCategory = normalizeCategory(parsedAction?.category);
+    let isNewProduct = false;
 
     if (parsedAction && parsedAction.intent !== 'none' && parsedAction.product_name) {
       const quantity = Math.max(0, Number(parsedAction.quantity || 0));
       const unit = normalizeUnit(parsedAction.unit);
+      const category = normalizeCategory(parsedAction.category);
 
       if (quantity > 0) {
         const { data: existingItems, error: existingError } = await usageClient
@@ -244,12 +270,14 @@ Deno.serve(async (request) => {
                 ? `${item.name} updated to ${newQuantity}.`
                 : `${item.name} atualizado para ${newQuantity}.`;
             } else {
+              isNewProduct = true;
+              inferredCategory = category;
               await usageClient
                 .from('pantry_items')
                 .insert([{
                   pantry_id: profile.pantry_id,
                   name: parsedAction.product_name,
-                  category: 'others',
+                  category,
                   current_quantity: quantity,
                   min_quantity: 1,
                   unit,
@@ -308,7 +336,12 @@ Deno.serve(async (request) => {
       console.error('Failed to log ai usage:', usageInsertError);
     }
 
-    return jsonResponse({ text: responseText, action_applied: actionApplied }, 200);
+    return jsonResponse({
+      text: responseText,
+      action_applied: actionApplied,
+      inferred_category: inferredCategory,
+      is_new_product: isNewProduct,
+    }, 200);
   } catch (error) {
     console.error('voice-assistant error:', error);
     return jsonResponse({ error: 'Failed to process voice request' }, 500);

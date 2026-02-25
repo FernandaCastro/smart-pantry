@@ -4,6 +4,8 @@ import { supabase } from './supabase';
 export interface VoiceAssistantResult {
   text: string;
   actionApplied: boolean;
+  inferredCategory: string;
+  isNewProduct: boolean;
 }
 
 const getUnavailableMessage = (lang: Language) => (
@@ -26,19 +28,36 @@ export const askVoiceAssistant = async (
 
     if (error) {
       console.error('Error invoking voice-assistant:', error);
-      return { text: getUnavailableMessage(lang), actionApplied: false };
+      return {
+        text: getUnavailableMessage(lang),
+        actionApplied: false,
+        inferredCategory: 'others',
+        isNewProduct: false,
+      };
     }
 
     if (data?.text) {
       return {
         text: data.text as string,
         actionApplied: Boolean(data.action_applied),
+        inferredCategory: String(data.inferred_category || 'others'),
+        isNewProduct: Boolean(data.is_new_product),
       };
     }
 
-    return { text: getUnavailableMessage(lang), actionApplied: false };
+    return {
+      text: getUnavailableMessage(lang),
+      actionApplied: false,
+      inferredCategory: 'others',
+      isNewProduct: false,
+    };
   } catch (error) {
     console.error('Unexpected voice-assistant error:', error);
-    return { text: getUnavailableMessage(lang), actionApplied: false };
+    return {
+      text: getUnavailableMessage(lang),
+      actionApplied: false,
+      inferredCategory: 'others',
+      isNewProduct: false,
+    };
   }
 };
