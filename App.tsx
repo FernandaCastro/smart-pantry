@@ -13,7 +13,7 @@ import { AuthScreen } from './components/screens/AuthScreen';
 import { MainAppLayout } from './components/screens/MainAppLayout';
 import { ProductFormData, useProductActions } from './hooks/useProductActions';
 import { useAuthentication } from './hooks/useAuthentication';
-import { IS_CONFIGURED, supabase, SUPABASE_KEY, SUPABASE_URL } from './services/supabase';
+import { IS_CONFIGURED, supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from './services/supabase';
 import { useDatabaseSetup } from './hooks/useDatabaseSetup';
 
 const App: React.FC = () => {
@@ -163,7 +163,7 @@ const App: React.FC = () => {
     return (
       <MissingConfigScreen
         supabaseUrl={SUPABASE_URL}
-        supabaseKey={SUPABASE_KEY}
+        supabaseKey={SUPABASE_ANON_KEY}
         googleClientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}
       />
     );

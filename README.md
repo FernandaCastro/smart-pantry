@@ -23,7 +23,7 @@ This repository now follows a **Quick and pragmatic approach** for backend evolu
 
 Implemented in this iteration:
 - `supabase/functions/ai-suggestions/index.ts`: Edge Function to call Gemini securely with server-side `GEMINI_API_KEY`.
-- `services/gemini.ts`: frontend now tries the Edge Function first, and only falls back to direct client call when needed.
+- `services/gemini.ts`: frontend calls only the `ai-suggestions` Edge Function using Supabase session auth.
 - UI refactor with reusable components in `components/` for easier maintenance.
 
 ## Frontend code organization
@@ -58,6 +58,14 @@ Expected server secret in Supabase environment:
 Suggested deployment command (Supabase CLI):
 - `supabase functions deploy ai-suggestions`
 
+
+
+## AI usage & limits
+
+- The frontend calls AI **only** through Supabase Edge Function `ai-suggestions`; there is no direct Gemini call or AI API key in client code.
+- Set `GEMINI_API_KEY` as a Supabase Function Secret (for example: `supabase secrets set GEMINI_API_KEY=...`).
+- Current MVP limit: **30 requests per user in a rolling 24h window** for `ai-suggestions`.
+- To adjust the limit, edit `DAILY_LIMIT` in `supabase/functions/ai-suggestions/index.ts` and redeploy the function.
 
 ## Supabase RLS hardening (next step)
 
