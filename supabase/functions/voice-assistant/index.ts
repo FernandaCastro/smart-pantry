@@ -7,7 +7,7 @@ interface PantryItemInput {
 }
 
 const DAILY_TOKEN_LIMIT = 12000;
-const FEATURE = 'ai-suggestions';
+const FEATURE = 'voice-assistant';
 const MODEL = 'gemini-2.5-flash';
 
 const corsHeaders = {
@@ -24,7 +24,6 @@ const jsonResponse = (body: Record<string, unknown>, status: number) =>
       ...corsHeaders,
     },
   });
-
 
 const extractTokenUsage = (usageMetadata: Record<string, unknown> | null | undefined) => {
   const requestTokens = Number(
@@ -100,9 +99,19 @@ Deno.serve(async (request) => {
     }
 
     const userId = authData.user.id;
-    const { pantry, lang = 'pt' } = await request.json() as { pantry: PantryItemInput[]; lang?: 'pt' | 'en' };
+    const { transcript, pantry = [], lang = 'pt' } = await request.json() as {
+      transcript?: string;
+      pantry?: PantryItemInput[];
+      lang?: 'pt' | 'en';
+    };
 
-    const requestChars = JSON.stringify({ pantry, lang }).length;
+    if (!transcript || !transcript.trim()) {
+      return jsonResponse({
+        error: lang === 'en' ? 'Voice transcript is empty' : 'Transcrição de voz vazia',
+      }, 400);
+    }
+
+    const requestChars = JSON.stringify({ transcript, pantry, lang }).length;
     const estimatedRequestTokens = estimateTokensFromChars(requestChars);
     const last24Hours = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
 
@@ -136,19 +145,17 @@ Deno.serve(async (request) => {
       }, 429);
     }
 
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-    const productsList = (pantry || [])
-      .map((p) => `${p.name} (${p.currentQuantity})`)
-      .join(', ');
+    const pantryContext = pantry.map((p) => `${p.name} (${p.currentQuantity})`).join(', ');
 
     const localizedPrompt = lang === 'en'
-      ? `Based on my pantry items: ${productsList}. Suggest 3 quick recipes or stock optimization tips. Respond in friendly English and use Markdown.`
-      : `Com base nos itens que tenho na minha despensa: ${productsList}. Sugira 3 receitas rápidas que eu possa fazer ou me dê dicas de organização/otimização de estoque. Responda em Português do Brasil com linguagem amigável e use Markdown.`;
+      ? `You are a voice assistant for pantry management. User said: "${transcript}". Pantry items: ${pantryContext || 'no pantry items'}. Provide a short, direct response in friendly English with practical next action.`
+      : `Você é um assistente de voz para gestão de despensa. Usuário disse: "${transcript}". Itens da despensa: ${pantryContext || 'sem itens na despensa'}. Responda de forma curta, direta e amigável em português, com próxima ação prática.`;
 
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
       contents: localizedPrompt,
-      config: { temperature: 0.7 },
+      config: { temperature: 0.4 },
     });
 
     const text = aiResponse.text || '';
@@ -174,7 +181,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse({ text }, 200);
   } catch (error) {
-    console.error('ai-suggestions error:', error);
-    return jsonResponse({ error: 'Failed to generate suggestions' }, 500);
+    console.error('voice-assistant error:', error);
+    return jsonResponse({ error: 'Failed to process voice request' }, 500);
   }
 });

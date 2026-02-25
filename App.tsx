@@ -136,7 +136,8 @@ const App: React.FC = () => {
     pantryRef,
     supabase,
     loadPantryData,
-    t
+    t,
+    lang
   });
 
   const handleFetchAiSuggestions = async () => {
