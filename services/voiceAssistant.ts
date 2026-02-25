@@ -1,3 +1,4 @@
+import { normalizeVoiceTranscriptToSingular } from '../voiceUtils';
 import { Language } from '../types';
 import { supabase } from './supabase';
 
@@ -19,9 +20,11 @@ export const askVoiceAssistant = async (
   lang: Language = 'pt',
 ): Promise<VoiceAssistantResult> => {
   try {
+    const normalizedTranscript = normalizeVoiceTranscriptToSingular(transcript);
+
     const { data, error } = await supabase.functions.invoke('voice-assistant', {
       body: {
-        transcript,
+        transcript: normalizedTranscript || transcript,
         lang,
       },
     });

@@ -48,6 +48,37 @@ const tokenCoverage = (source: string[], target: string[]) => {
   return intersection / targetSet.size;
 };
 
+
+const NON_PRODUCT_TOKENS = new Set([
+  'adicionar', 'adicione', 'adiciona', 'adicione', 'consumir', 'consuma', 'consome',
+  'remover', 'remove', 'retirar', 'retire', 'usar', 'use', 'comprar', 'compre',
+  'i', 'you', 'me', 'my', 'o', 'a', 'os', 'as', 'um', 'uma', 'uns', 'umas', 'de', 'do', 'da',
+  'dos', 'das', 'no', 'na', 'nos', 'nas', 'para', 'por', 'com', 'sem', 'e', 'ou', 'mais',
+  'menos', 'que', 'what', 'please', 'porfavor', 'favor'
+]);
+
+const singularizeWord = (word: string) => {
+  const normalized = normalizeText(word);
+  if (!normalized || NON_PRODUCT_TOKENS.has(normalized)) return normalized;
+
+  if (normalized.endsWith('zes') && normalized.length > 4) return `${normalized.slice(0, -3)}z`;
+  if (normalized.endsWith('tes') && normalized.length > 4) return normalized.slice(0, -1);
+  if (normalized.endsWith('es') && normalized.length > 4) return normalized.slice(0, -2);
+  if (normalized.endsWith('s') && normalized.length > 3) return normalized.slice(0, -1);
+  return normalized;
+};
+
+export const normalizeVoiceTranscriptToSingular = (transcript: string) => {
+  if (!transcript?.trim()) return '';
+
+  return transcript
+    .split(/\s+/)
+    .map(singularizeWord)
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+};
+
 export const inferVoiceIntent = (args: any): VoiceIntent | null => {
   const rawIntent = String(args?.intent || args?.action || '').toLowerCase();
   if (['consume', 'consumir', 'consumi', 'remove', 'retirar', 'usar', 'used'].includes(rawIntent)) return 'consume';
