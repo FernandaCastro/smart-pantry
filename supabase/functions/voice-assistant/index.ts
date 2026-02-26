@@ -1,5 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { GoogleGenAI } from 'npm:@google/genai';
+import { GoogleGenAI, Type } from 'npm:@google/genai';
 
 const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
@@ -196,8 +196,8 @@ Deno.serve(async (request) => {
               intent: { type: Type.STRING, enum: ['add', 'consume', 'none'] },
               product_name: { type: Type.STRING },
               quantity: { type: Type.NUMBER },
-              unit: { type: Type.STRING, enum: ALLOWED_UNITS },
-              category: { type: Type.STRING, enum: ALLOWED_CATEGORIES },
+              unit: { type: Type.STRING, enum: [...ALLOWED_UNITS] },
+              category: { type: Type.STRING, enum: [...ALLOWED_CATEGORIES] },
               message: {
                             type: Type.STRING,
                             description: lang === 'en' ? "Short message in English" : "Mensagem curta em português"
