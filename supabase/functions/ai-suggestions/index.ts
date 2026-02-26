@@ -6,8 +6,9 @@ interface PantryItemInput {
   currentQuantity: number;
 }
 
-const DAILY_LIMIT = 30;
+const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'ai-suggestions';
+const MODEL = 'gemini-2.5-flash';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,37 @@ const jsonResponse = (body: Record<string, unknown>, status: number) =>
       ...corsHeaders,
     },
   });
+
+
+const extractTokenUsage = (usageMetadata: Record<string, unknown> | null | undefined) => {
+  const requestTokens = Number(
+    usageMetadata?.promptTokenCount ??
+    usageMetadata?.inputTokenCount ??
+    0,
+  );
+
+  const responseTokens = Number(
+    usageMetadata?.candidatesTokenCount ??
+    usageMetadata?.outputTokenCount ??
+    0,
+  );
+
+  const totalFromProvider = Number(usageMetadata?.totalTokenCount ?? 0);
+  const totalTokens = totalFromProvider > 0
+    ? totalFromProvider
+    : requestTokens + responseTokens;
+
+  return {
+    requestTokens: Number.isFinite(requestTokens) ? requestTokens : 0,
+    responseTokens: Number.isFinite(responseTokens) ? responseTokens : 0,
+    totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
+  };
+};
+
+const estimateTokensFromChars = (requestChars: number, responseChars = 0) => {
+  const safeChars = Math.max(0, requestChars) + Math.max(0, responseChars);
+  return Math.max(1, Math.ceil(safeChars / 4));
+};
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -71,24 +103,36 @@ Deno.serve(async (request) => {
     const { pantry, lang = 'pt' } = await request.json() as { pantry: PantryItemInput[]; lang?: 'pt' | 'en' };
 
     const requestChars = JSON.stringify({ pantry, lang }).length;
+    const estimatedRequestTokens = estimateTokensFromChars(requestChars);
     const last24Hours = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
 
-    const { count, error: usageCountError } = await usageClient
+    const { data: usageRows, error: usageReadError } = await usageClient
       .from('ai_usage')
-      .select('id', { count: 'exact', head: true })
+      .select('total_tokens,request_chars,response_chars')
       .eq('user_id', userId)
       .eq('feature', FEATURE)
       .gte('created_at', last24Hours);
 
-    if (usageCountError) {
-      console.error('Failed to count usage:', usageCountError);
+    if (usageReadError) {
+      console.error('Failed to read usage:', usageReadError);
       return jsonResponse({ error: 'Failed to validate usage limits' }, 500);
     }
 
-    if ((count ?? 0) >= DAILY_LIMIT) {
+    const consumedTokens = (usageRows || []).reduce((sum, row) => {
+      const persistedTotal = Number(row.total_tokens || 0);
+      if (Number.isFinite(persistedTotal) && persistedTotal > 0) {
+        return sum + persistedTotal;
+      }
+
+      return sum + estimateTokensFromChars(Number(row.request_chars || 0), Number(row.response_chars || 0));
+    }, 0);
+
+    const remainingBeforeCall = DAILY_TOKEN_LIMIT - consumedTokens;
+    if (remainingBeforeCall <= 0 || remainingBeforeCall < estimatedRequestTokens) {
       return jsonResponse({
-        error: 'Daily AI request limit reached. Please try again in 24 hours.',
-        limit: DAILY_LIMIT,
+        error: 'Daily AI token limit reached. Please try again in 24 hours.',
+        limit: DAILY_TOKEN_LIMIT,
+        remaining_tokens: Math.max(0, remainingBeforeCall),
       }, 429);
     }
 
@@ -102,18 +146,26 @@ Deno.serve(async (request) => {
       : `Com base nos itens que tenho na minha despensa: ${productsList}. Sugira 3 receitas rápidas que eu possa fazer ou me dê dicas de organização/otimização de estoque. Responda em Português do Brasil com linguagem amigável e use Markdown.`;
 
     const aiResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: MODEL,
       contents: localizedPrompt,
       config: { temperature: 0.7 },
     });
 
     const text = aiResponse.text || '';
+    const usageMetadata = aiResponse.usageMetadata as Record<string, unknown> | undefined;
+    const tokenUsage = extractTokenUsage(usageMetadata);
+    const fallbackTotalTokens = estimateTokensFromChars(requestChars, text.length);
 
     const { error: usageInsertError } = await usageClient.from('ai_usage').insert({
       user_id: userId,
       feature: FEATURE,
       request_chars: requestChars,
       response_chars: text.length,
+      request_tokens: tokenUsage.requestTokens,
+      response_tokens: tokenUsage.responseTokens,
+      total_tokens: tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : fallbackTotalTokens,
+      provider: 'gemini',
+      model: MODEL,
     });
 
     if (usageInsertError) {

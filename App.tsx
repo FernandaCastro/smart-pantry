@@ -133,10 +133,10 @@ const App: React.FC = () => {
   const { isVoiceActive, voiceLog, startVoiceSession, stopVoiceSession } = useVoiceAssistant({
     currentUser,
     isConfigured: IS_CONFIGURED,
-    pantryRef,
     supabase,
     loadPantryData,
-    t
+    t,
+    lang
   });
 
   const handleFetchAiSuggestions = async () => {
