@@ -4,6 +4,7 @@ import { GoogleGenAI } from 'npm:@google/genai';
 const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
 const MODEL = 'gemini-2.5-flash';
+
 const ALLOWED_UNITS = new Set(['un', 'kg', 'l', 'g', 'ml', 'package', 'box']);
 const ALLOWED_CATEGORIES = new Set([
   'cereals_grains',
@@ -75,44 +76,6 @@ const extractTokenUsage = (usageMetadata: Record<string, unknown> | null | undef
 const estimateTokensFromChars = (requestChars: number, responseChars = 0) => {
   const safeChars = Math.max(0, requestChars) + Math.max(0, responseChars);
   return Math.max(1, Math.ceil(safeChars / 4));
-};
-
-const parseJsonFromModel = (rawText: string): VoiceAction | null => {
-  if (!rawText?.trim()) return null;
-
-  const stripped = rawText
-    .replace(/```json/gi, '')
-    .replace(/```/g, '')
-    .trim();
-
-  const start = stripped.indexOf('{');
-  const end = stripped.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
-
-  const maybeJson = stripped.slice(start, end + 1);
-
-  try {
-    const parsed = JSON.parse(maybeJson) as Partial<VoiceAction>;
-    const intent = (parsed.intent || 'none') as VoiceIntent;
-    const productName = String(parsed.product_name || '').trim();
-    const quantity = Number(parsed.quantity || 0);
-    const unit = String(parsed.unit || '').trim().toLowerCase();
-    const category = String(parsed.category || '').trim().toLowerCase();
-    const message = String(parsed.message || '').trim();
-
-    if (!['add', 'consume', 'none'].includes(intent)) return null;
-
-    return {
-      intent,
-      product_name: productName,
-      quantity: Number.isFinite(quantity) ? quantity : 0,
-      unit,
-      category,
-      message,
-    };
-  } catch {
-    return null;
-  }
 };
 
 const normalizeUnit = (unit: string | undefined) => {
@@ -221,12 +184,32 @@ Deno.serve(async (request) => {
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: `${modelPrompt}\n\nTranscription: ${transcript}`,
-      config: { temperature: 0.1 },
+      contents: `Transcription: ${transcript}`,
+      config: {
+          systemInstruction: lang === 'en'
+                    ? "Extract inventory action. Infer category for new items. If unclear, intent=none, quantity=0, category=others."
+                    : "Extraia ação de estoque. Infira categoria para itens novos. Se incerto, intent=none, quantity=0, category=others.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              intent: { type: Type.STRING, enum: ['add', 'consume', 'none'] },
+              product_name: { type: Type.STRING },
+              quantity: { type: Type.NUMBER },
+              unit: { type: Type.STRING, enum: ALLOWED_UNITS },
+              category: { type: Type.STRING, enum: ALLOWED_CATEGORIES },
+              message: {
+                            type: Type.STRING,
+                            description: lang === 'en' ? "Short message in English" : "Mensagem curta em português"
+                          }
+                        },
+              required: ['intent', 'product_name', 'quantity', 'unit', 'category', 'message']
+          },
+          temperature: 0.1
+          },
     });
 
-    const text = aiResponse.text || '';
-    const parsedAction = parseJsonFromModel(text);
+    const parsedAction = JSON.parse(aiResponse.text || '{}') as VoiceAction;
 
     const { data: profile, error: profileError } = await usageClient
       .from('profiles')
@@ -285,7 +268,7 @@ Deno.serve(async (request) => {
                 }]);
               responseText = lang === 'en'
                 ? `${parsedAction.product_name} added.`
-                : `${parsedAction.product_name} adicionado.`;
+                : `Adicionado: ${parsedAction.product_name}.`;
             }
             actionApplied = true;
           }
