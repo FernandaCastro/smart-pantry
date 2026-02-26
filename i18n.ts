@@ -64,7 +64,8 @@ export const translations = {
     newHere: "Sou novo por aqui",
     alreadyHaveAccount: "Já tenho uma conta",
     authRegisterTitle: "Crie sua conta",
-    authLoginTitle: "Bem-vindo de volta"
+    authLoginTitle: "Bem-vindo de volta",
+    appTagline: "Controle inteligente da despensa"
   },
   en: {
     dashboard: "Dashboard",
@@ -130,7 +131,8 @@ export const translations = {
     newHere: "I'm new here",
     alreadyHaveAccount: "Already have an account",
     authRegisterTitle: "Create your account",
-    authLoginTitle: "Welcome back"
+    authLoginTitle: "Welcome back",
+    appTagline: "Smart pantry management"
   }
 };
 
