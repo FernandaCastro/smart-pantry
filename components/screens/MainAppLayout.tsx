@@ -89,7 +89,7 @@ export const MainAppLayout: React.FC<MainAppLayoutProps> = ({
               <div className="p-2 bg-[var(--sp-violet-500)] rounded-xl text-[var(--sp-white)]"><Package size={20} /></div>
               <h2 className="font-black text-lg text-[var(--sp-violet-900)]">Smart Pantry</h2>
             </div>
-            <p className="text-sm text-[var(--sp-violet-600)]/70">Controle inteligente da despensa</p>
+            <p className="text-sm text-[var(--sp-violet-600)]/70">{t('appTagline')}</p>
           </div>
 
           <nav className="space-y-2">
