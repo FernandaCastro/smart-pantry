@@ -102,7 +102,8 @@ Deno.serve(async (request) => {
     const userId = authData.user.id;
     const { pantry, lang = 'pt' } = await request.json() as { pantry: PantryItemInput[]; lang?: 'pt' | 'en' };
 
-    const requestChars = JSON.stringify({ pantry, lang }).length;
+    const productsList = (pantry || []).map(p => `${p.name}:${p.currentQuantity}`).join(',');
+    const requestChars = JSON.stringify({ p: productsList, l: lang }).length;
     const estimatedRequestTokens = estimateTokensFromChars(requestChars);
     const last24Hours = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
 
@@ -137,18 +138,16 @@ Deno.serve(async (request) => {
     }
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-    const productsList = (pantry || [])
-      .map((p) => `${p.name} (${p.currentQuantity})`)
-      .join(', ');
-
-    const localizedPrompt = lang === 'en'
-      ? `Based on my pantry items: ${productsList}. Suggest 3 quick recipes or stock optimization tips. Respond in friendly English and use Markdown.`
-      : `Com base nos itens que tenho na minha despensa: ${productsList}. Sugira 3 receitas rápidas que eu possa fazer ou me dê dicas de organização/otimização de estoque. Responda em Português do Brasil com linguagem amigável e use Markdown.`;
 
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: localizedPrompt,
-      config: { temperature: 0.7 },
+      contents: `Items: ${productsList}`,
+      config: {
+        systemInstruction: lang === 'en'
+          ? "Pantry assistant. Suggest 3 quick recipes/tips based on items. Concise, friendly, Markdown."
+          : "Assistente de despensa. Sugira 3 receitas/dicas rápidas. Conciso, amigável, Markdown.",
+        temperature: 0.7,
+      },
     });
 
     const text = aiResponse.text || '';
