@@ -2,6 +2,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { User, ViewType, Product } from '../types';
 
+const LAST_AI_SUGGESTION_STORAGE_KEY = 'last_ai_suggestion';
+
 interface UseAuthenticationParams {
   supabase: SupabaseClient;
   isConfigured: boolean;
@@ -222,6 +224,7 @@ export function useAuthentication({
 
   const handleLogout = useCallback(async () => {
     localStorage.removeItem('current_user');
+    localStorage.removeItem(LAST_AI_SUGGESTION_STORAGE_KEY);
     await supabase.auth.signOut();
     setCurrentUser(null);
     setAuthEmail('');
@@ -237,6 +240,7 @@ export function useAuthentication({
 
       if (!session?.user) {
         localStorage.removeItem('current_user');
+        localStorage.removeItem(LAST_AI_SUGGESTION_STORAGE_KEY);
         setCurrentUser(null);
         setCurrentView('auth');
         return;

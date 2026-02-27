@@ -16,6 +16,8 @@ import { useAuthentication } from './hooks/useAuthentication';
 import { IS_CONFIGURED, supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from './services/supabase';
 import { useDatabaseSetup } from './hooks/useDatabaseSetup';
 
+const LAST_AI_SUGGESTION_STORAGE_KEY = 'last_ai_suggestion';
+
 const App: React.FC = () => {
   type ThemeMode = 'light' | 'dark';
 
@@ -53,6 +55,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const savedLang = localStorage.getItem('app_lang');
+    const savedAiSuggestion = localStorage.getItem(LAST_AI_SUGGESTION_STORAGE_KEY);
+    if (savedAiSuggestion) setAiSuggestions(savedAiSuggestion);
     if (savedLang) setLang(resolveLanguage(savedLang));
 
     const savedTheme = localStorage.getItem('app_theme') as ThemeMode | null;
@@ -66,6 +70,15 @@ const App: React.FC = () => {
     document.body.classList.toggle('theme-dark', theme === 'dark');
     localStorage.setItem('app_theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!aiSuggestions) {
+      localStorage.removeItem(LAST_AI_SUGGESTION_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(LAST_AI_SUGGESTION_STORAGE_KEY, aiSuggestions);
+  }, [aiSuggestions]);
 
 
 
