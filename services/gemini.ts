@@ -1,5 +1,5 @@
 import { Language, Product } from '../types';
-import { translate } from '../i18n';
+import { DEFAULT_LANGUAGE, translate } from '../i18n';
 import { supabase } from './supabase';
 
 interface PantrySuggestionInput {
@@ -9,7 +9,7 @@ interface PantrySuggestionInput {
 
 const getUnavailableMessage = (lang: Language) => translate(lang, 'aiUnavailable');
 
-export const getSmartSuggestions = async (pantry: Product[], lang: Language = 'pt') => {
+export const getSmartSuggestions = async (pantry: Product[], lang: Language = DEFAULT_LANGUAGE) => {
   const minimalPantry: PantrySuggestionInput[] = pantry.map((product) => ({
     name: product.name,
     currentQuantity: product.currentQuantity,

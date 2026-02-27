@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronDown, Circle, Loader2, Minus, Plus } from 'lucide-react';
 import { CATEGORIES, getCategoryLabel, getUnitLabel } from '../../constants';
-import { TranslationKey } from '../../i18n';
+import { SUPPORTED_LANGUAGES, TranslationKey } from '../../i18n';
 import { Language, Product, ShoppingItem } from '../../types';
 
 interface ShoppingScreenProps {
@@ -46,7 +46,7 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
       return acc;
     }, {});
 
-    const collator = new Intl.Collator(lang === 'pt' ? 'pt-BR' : 'en-US');
+    const collator = new Intl.Collator(SUPPORTED_LANGUAGES[lang].speechLocale);
 
     return Object.entries(grouped)
       .map(([categoryId, items]) => {

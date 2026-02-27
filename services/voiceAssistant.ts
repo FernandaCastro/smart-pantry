@@ -1,5 +1,5 @@
 import { normalizeVoiceTranscriptToSingular } from '../voiceUtils';
-import { translate } from '../i18n';
+import { DEFAULT_LANGUAGE, translate } from '../i18n';
 import { Language } from '../types';
 import { supabase } from './supabase';
 
@@ -14,7 +14,7 @@ const getUnavailableMessage = (lang: Language) => translate(lang, 'voiceUnavaila
 
 export const askVoiceAssistant = async (
   transcript: string,
-  lang: Language = 'pt',
+  lang: Language = DEFAULT_LANGUAGE,
 ): Promise<VoiceAssistantResult> => {
   try {
     const normalizedTranscript = normalizeVoiceTranscriptToSingular(transcript);
