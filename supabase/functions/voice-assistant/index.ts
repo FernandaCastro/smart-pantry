@@ -136,12 +136,12 @@ Deno.serve(async (request) => {
     const userId = authData.user.id;
     const { transcript, lang = 'pt' } = await request.json() as {
       transcript?: string;
-      lang?: 'pt' | 'en';
+      lang?: 'en' | 'pt';
     };
 
     if (!transcript || !transcript.trim()) {
       return jsonResponse({
-        error: lang === 'en' ? 'Voice transcript is empty' : 'Transcrição de voz vazia',
+        error: 'Voice transcript is empty',
       }, 400);
     }
 
@@ -184,16 +184,9 @@ Deno.serve(async (request) => {
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: `Voice transcript: ${transcript}`,
+      contents: `Transcript: ${transcript}`,
       config: {
-        systemInstruction: `Extract an inventory action from the transcript and return JSON only.
-Use this schema exactly:
-{"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","category":"cereals_grains|fruits_vegetables|canned_goods|meat_fish|bakery|cooking_baking|sweets_savory_snacks|dairy|cleaning|hygiene|beverages|frozen|others","message":"string"}.
-Rules:
-- message must be in ${responseLanguage}.
-- Never translate or normalize product names; keep product_name exactly as spoken by the user when identifiable.
-- If action is unclear, return intent=none, quantity=0, unit=un, category=others.
-- Keep message short and user-friendly.`,
+        systemInstruction: `Extract inventory action. Infer category for new items. If unclear, intent=none, quantity=0, category=others.`,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,

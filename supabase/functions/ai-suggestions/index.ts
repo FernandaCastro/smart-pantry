@@ -145,13 +145,11 @@ Deno.serve(async (request) => {
 
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: `Pantry items (name:quantity): ${productsList}`,
+      contents: `Items: ${productsList}`,
       config: {
-        systemInstruction: `You are a pantry assistant. Generate exactly 3 concise recipe or pantry tips in Markdown.
-- Write the final answer in ${responseLanguage}.
-- Keep any product names exactly as provided by the user/input (do not translate, rename, or transliterate product names).
-- You may translate connective words around product names, but preserve product names verbatim.
-- Be practical, friendly, and direct.`,
+        systemInstruction: `Pantry assistant. Suggest 3 quick recipes/tips based on items. Concise, friendly, Markdown.
+- Write the answer in ${responseLanguage}.
+- Keep any item names exactly as provided by the user/input.`,
         temperature: 0.7,
       },
     });
