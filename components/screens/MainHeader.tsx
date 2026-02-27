@@ -38,7 +38,7 @@ export const MainHeader: React.FC<MainHeaderProps> = ({
         <div className="p-2 bg-gradient-to-br from-[var(--sp-violet-100)] to-[var(--sp-indigo-100)] rounded-xl text-[var(--sp-violet-600)] shadow-sm ring-1 ring-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)]">
           <HeaderIcon size={20} />
         </div>
-        <h1 className="font-bold text-[var(--sp-gray-800)]">{currentView === 'dashboard' ? 'Smart Pantry' : t(currentView as TranslationKey)}</h1>
+        <h1 className="font-bold text-[var(--sp-gray-800)]">{t(currentView as TranslationKey)}</h1>
       </div>
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 p-1 rounded-xl border border-[var(--sp-violet-200)] bg-[var(--sp-violet-50)]">

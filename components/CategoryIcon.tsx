@@ -3,17 +3,18 @@ import {
   Apple,
   Bean,
   Beef,
+  BottleWine,
   CakeSlice,
   Candy,
   Carrot,
   CookingPot,
   Croissant,
   Fish,
-  GlassWater,
   Milk,
   Package,
+  Popcorn,
   Snowflake,
-  Sparkles,
+  SoapDispenserDroplet,
   Soup,
   SprayCan,
   Wheat,
@@ -26,17 +27,17 @@ type CategoryStyle = {
 };
 
 const categoryStyles: Record<string, CategoryStyle> = {
-  cereals_grains: { icons: [Wheat, Bean], bgClass: 'bg-gradient-to-br from-amber-400 to-orange-500' },
+  cereals_grains: { icons: [Wheat, Bean], bgClass: 'bg-gradient-to-br from-orange-200 to-red-500' },
   fruits_vegetables: { icons: [Apple, Carrot], bgClass: 'bg-gradient-to-br from-emerald-400 to-lime-500' },
-  canned_goods: { icons: [Soup], bgClass: 'bg-gradient-to-br from-cyan-500 to-blue-600' },
+  canned_goods: { icons: [Soup], bgClass: 'bg-gradient-to-br from-cyan-200 to-gray-500' },
   meat_fish: { icons: [Beef, Fish], bgClass: 'bg-gradient-to-br from-rose-500 to-red-600' },
-  bakery: { icons: [Croissant], bgClass: 'bg-gradient-to-br from-orange-400 to-amber-500' },
+  bakery: { icons: [Croissant], bgClass: 'bg-gradient-to-br from-amber-300 to-orange-600' },
   cooking_baking: { icons: [CookingPot, CakeSlice], bgClass: 'bg-gradient-to-br from-fuchsia-500 to-violet-600' },
-  sweets_savory_snacks: { icons: [Candy, Sparkles], bgClass: 'bg-gradient-to-br from-pink-500 to-fuchsia-600' },
-  dairy: { icons: [Milk], bgClass: 'bg-gradient-to-br from-sky-400 to-indigo-500' },
+  sweets_savory_snacks: { icons: [Candy, Popcorn], bgClass: 'bg-gradient-to-br from-pink-500 to-fuchsia-600' },
+  dairy: { icons: [Milk], bgClass: 'bg-gradient-to-br from-yellow-200 to-amber-500' },
   cleaning: { icons: [SprayCan], bgClass: 'bg-gradient-to-br from-teal-500 to-cyan-600' },
-  hygiene: { icons: [Sparkles], bgClass: 'bg-gradient-to-br from-violet-500 to-purple-600' },
-  beverages: { icons: [GlassWater], bgClass: 'bg-gradient-to-br from-blue-500 to-indigo-600' },
+  hygiene: { icons: [SoapDispenserDroplet], bgClass: 'bg-gradient-to-br from-violet-500 to-purple-600' },
+  beverages: { icons: [BottleWine], bgClass: 'bg-gradient-to-br from-blue-500 to-indigo-600' },
   frozen: { icons: [Snowflake], bgClass: 'bg-gradient-to-br from-cyan-400 to-sky-500' },
   others: { icons: [Package], bgClass: 'bg-gradient-to-br from-slate-500 to-gray-600' },
 };
@@ -51,7 +52,7 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryId, size = 1
   const style = categoryStyles[categoryId] || categoryStyles.others;
 
   return (
-    <span className={`inline-flex items-center gap-1 ${className}`} aria-hidden="true">
+    <span className={`inline-flex items-center ${className}`} aria-hidden="true">
       {style.icons.map((Icon, index) => (
         <span
           key={`${categoryId}-${index}`}
@@ -65,5 +66,3 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryId, size = 1
   );
 };
 
-// Referência de estilo (ícones gratuitos):
-// https://www.flaticon.com/free-icon/rice_9921058?term=cereals+and+grains&page=1&position=3&origin=search&related_id=9921058

@@ -47,19 +47,20 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
                 <h4 className="font-bold text-[var(--sp-gray-800)] text-left truncate">{item.name}</h4>
                 <p className="text-[10px] text-[var(--sp-gray-400)] uppercase font-bold tracking-widest text-left">{getCategoryLabel(item.category, lang)}</p>
                 <span className="text-[10px] font-bold text-[var(--sp-gray-400)] text-left block">{item.currentQuantity}/{item.minQuantity} {getUnitLabel(item.unit, lang)}</span>
-                <div className="mt-1 flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => onUpdateQuantity(item.id, -1)} className="p-2 text-[var(--sp-gray-400)]"><Minus size={18} /></button>
-                    <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
-                    <button onClick={() => onUpdateQuantity(item.id, 1)} className="p-2 text-[var(--sp-gray-400)]"><Plus size={18} /></button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => onEditProduct(item)} className="p-1.5 text-[var(--sp-gray-300)] hover:text-[var(--sp-violet-500)]"><Pencil size={16} /></button>
-                    <button onClick={() => onDeleteProduct(item.id)} className="p-1.5 text-[var(--sp-gray-300)] hover:text-[var(--sp-red-400)]"><Trash2 size={16} /></button>
-                  </div>
-                </div>
+
               </div>
             </div>
+            <div className="mt-1 flex items-center justify-between">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => onUpdateQuantity(item.id, -1)} className="p-2 text-[var(--sp-gray-400)]"><Minus size={18} /></button>
+                                <span className="w-8 text-center font-bold">{item.currentQuantity}</span>
+                                <button onClick={() => onUpdateQuantity(item.id, 1)} className="p-2 text-[var(--sp-gray-400)]"><Plus size={18} /></button>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => onEditProduct(item)} className="p-1.5 text-[var(--sp-gray-300)] hover:text-[var(--sp-violet-500)]"><Pencil size={16} /></button>
+                                <button onClick={() => onDeleteProduct(item.id)} className="p-1.5 text-[var(--sp-gray-300)] hover:text-[var(--sp-red-400)]"><Trash2 size={16} /></button>
+                              </div>
+                            </div>
           </div>
         ))}
         </div>
