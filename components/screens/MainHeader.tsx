@@ -1,6 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Moon, Package, Settings, ShoppingBasket, Sparkles, Sun } from 'lucide-react';
-import { TranslationKey } from '../../i18n';
+import { SUPPORTED_LANGUAGES, TranslationKey } from '../../i18n';
 import { Language, ViewType } from '../../types';
 
 interface MainHeaderProps {
@@ -42,22 +42,17 @@ export const MainHeader: React.FC<MainHeaderProps> = ({
       </div>
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 p-1 rounded-xl border border-[var(--sp-violet-200)] bg-[var(--sp-violet-50)]">
-          <button
-            onClick={() => onSetLang('pt')}
-            aria-label="Português"
-            title="Português"
-            className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${lang === 'pt' ? 'bg-[var(--sp-white)] shadow-sm' : 'grayscale opacity-45 hover:opacity-70'}`}
-          >
-            🇧🇷
-          </button>
-          <button
-            onClick={() => onSetLang('en')}
-            aria-label="English"
-            title="English"
-            className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${lang === 'en' ? 'bg-[var(--sp-white)] shadow-sm' : 'grayscale opacity-45 hover:opacity-70'}`}
-          >
-            🇺🇸
-          </button>
+          {Object.values(SUPPORTED_LANGUAGES).map((locale) => (
+            <button
+              key={locale.code}
+              onClick={() => onSetLang(locale.code)}
+              aria-label={locale.label}
+              title={locale.label}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${lang === locale.code ? 'bg-[var(--sp-white)] shadow-sm' : 'grayscale opacity-45 hover:opacity-70'}`}
+            >
+              {locale.flag}
+            </button>
+          ))}
         </div>
         <button
           onClick={onToggleTheme}

@@ -5,6 +5,8 @@ const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
 const MODEL = 'gemini-2.5-flash';
 
+const getResponseLanguageLabel = (lang: 'pt' | 'en') => (lang === 'pt' ? 'Portuguese (pt-BR)' : 'English (en-US)');
+
 const ALLOWED_UNITS = new Set(['un', 'kg', 'l', 'g', 'ml', 'package', 'box']);
 const ALLOWED_CATEGORIES = new Set([
   'cereals_grains',
@@ -134,12 +136,12 @@ Deno.serve(async (request) => {
     const userId = authData.user.id;
     const { transcript, lang = 'pt' } = await request.json() as {
       transcript?: string;
-      lang?: 'pt' | 'en';
+      lang?: 'en' | 'pt';
     };
 
     if (!transcript || !transcript.trim()) {
       return jsonResponse({
-        error: lang === 'en' ? 'Voice transcript is empty' : 'Transcrição de voz vazia',
+        error: 'Voice transcript is empty',
       }, 400);
     }
 
@@ -177,36 +179,32 @@ Deno.serve(async (request) => {
       }, 429);
     }
 
-    const modelPrompt = lang === 'en'
-      ? `Extract inventory action from the user's speech and return JSON only with this schema: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","category":"cereals_grains|fruits_vegetables|canned_goods|meat_fish|bakery|cooking_baking|sweets_savory_snacks|dairy|cleaning|hygiene|beverages|frozen|others","message":"short english message"}. Infer category for the product, mainly when it is a new pantry item. If action is unclear, use intent=none with quantity=0 and category=others.`
-      : `Extraia a ação de estoque da fala do usuário e responda somente JSON no formato: {"intent":"add|consume|none","product_name":"string","quantity":number,"unit":"un|kg|l|g|ml|package|box","category":"cereals_grains|fruits_vegetables|canned_goods|meat_fish|bakery|cooking_baking|sweets_savory_snacks|dairy|cleaning|hygiene|beverages|frozen|others","message":"mensagem curta em português"}. Inferir a categoria do produto, principalmente quando ele for novo na despensa. Se não estiver claro, use intent=none com quantity=0 e category=others.`;
+    const responseLanguage = getResponseLanguageLabel(lang);
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: `Transcription: ${transcript}`,
+      contents: `Transcript: ${transcript}`,
       config: {
-          systemInstruction: lang === 'en'
-                    ? "Extract inventory action. Infer category for new items. If unclear, intent=none, quantity=0, category=others."
-                    : "Extraia ação de estoque. Infira categoria para itens novos. Se incerto, intent=none, quantity=0, category=others.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              intent: { type: Type.STRING, enum: ['add', 'consume', 'none'] },
-              product_name: { type: Type.STRING },
-              quantity: { type: Type.NUMBER },
-              unit: { type: Type.STRING, enum: [...ALLOWED_UNITS] },
-              category: { type: Type.STRING, enum: [...ALLOWED_CATEGORIES] },
-              message: {
-                            type: Type.STRING,
-                            description: lang === 'en' ? "Short message in English" : "Mensagem curta em português"
-                          }
-                        },
-              required: ['intent', 'product_name', 'quantity', 'unit', 'category', 'message']
+        systemInstruction: `Extract inventory action. Infer category for new items. If unclear, intent=none, quantity=0, category=others.`,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            intent: { type: Type.STRING, enum: ['add', 'consume', 'none'] },
+            product_name: { type: Type.STRING },
+            quantity: { type: Type.NUMBER },
+            unit: { type: Type.STRING, enum: [...ALLOWED_UNITS] },
+            category: { type: Type.STRING, enum: [...ALLOWED_CATEGORIES] },
+            message: {
+              type: Type.STRING,
+              description: `Short message in ${responseLanguage}`,
+            },
           },
-          temperature: 0.1
-          },
+          required: ['intent', 'product_name', 'quantity', 'unit', 'category', 'message'],
+        },
+        temperature: 0.1,
+      },
     });
 
     const parsedAction = JSON.parse(aiResponse.text || '{}') as VoiceAction;
