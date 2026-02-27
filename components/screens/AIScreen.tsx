@@ -166,7 +166,7 @@ export const AIScreen: React.FC<AIScreenProps> = ({ isLoading, aiSuggestions, t,
     <div className="space-y-6">
       <div className="flex items-center gap-2 text-[var(--sp-violet-600)]"><Sparkles size={24} /><h2 className="text-xl font-bold">{t('aiTitle')}</h2></div>
       <div className="bg-[var(--sp-white)] border-2 border-[var(--sp-violet-50)] p-6 rounded-[2.5rem] shadow-sm leading-relaxed text-[var(--sp-gray-700)] prose text-sm">
-        {isLoading ? <Loader2 className="animate-spin text-[var(--sp-violet-500)] mx-auto" /> : <div>{renderMarkdown(aiSuggestions || 'Nenhuma sugestão disponível.')}</div>}
+        {isLoading ? <Loader2 className="animate-spin text-[var(--sp-violet-500)] mx-auto" /> : <div>{renderMarkdown(aiSuggestions || t('aiUnavailable'))}</div>}
       </div>
       <button onClick={onBack} className="w-full py-4 border-2 border-[var(--sp-violet-500)] text-[var(--sp-violet-500)] font-bold rounded-2xl">{t('back')}</button>
     </div>
