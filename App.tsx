@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, ViewType, User, Language } from './types';
 import { getSmartSuggestions } from './services/gemini';
-import { translations, TranslationKey } from './i18n';
+import { createTranslator, DEFAULT_LANGUAGE, resolveLanguage, TranslationKey } from './i18n';
 import { useVoiceAssistant } from './hooks/useVoiceAssistant';
 import { BottomNav } from './components/BottomNav';
 import { VoiceAssistantOverlay } from './components/VoiceAssistantOverlay';
@@ -29,7 +29,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string>('');
-  const [lang, setLang] = useState<Language>('pt');
+  const [lang, setLang] = useState<Language>(DEFAULT_LANGUAGE);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [dbTableError, setDbTableError] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ const App: React.FC = () => {
   const [shopQuantities, setShopQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => { pantryRef.current = pantry; }, [pantry]);
-  const t = (key: TranslationKey) => translations[lang][key];
+  const t = createTranslator(lang);
 
   const { sqlSetupScript, supabaseDashboardUrl, handleCopySql } = useDatabaseSetup({
     supabaseUrl: SUPABASE_URL
@@ -53,7 +53,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const savedLang = localStorage.getItem('app_lang');
-    if (savedLang) setLang(savedLang as Language);
+    if (savedLang) setLang(resolveLanguage(savedLang));
 
     const savedTheme = localStorage.getItem('app_theme') as ThemeMode | null;
     if (savedTheme === 'dark' || savedTheme === 'light') {

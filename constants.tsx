@@ -1,3 +1,4 @@
+import { TranslationKey, translate } from './i18n';
 import { Category, Language, Unit } from './types';
 
 export const CATEGORIES: Category[] = [
@@ -18,60 +19,8 @@ export const CATEGORIES: Category[] = [
 
 export const UNITS: Unit[] = ['un', 'kg', 'l', 'g', 'ml', 'package', 'box'];
 
-const CATEGORY_LABELS: Record<Language, Record<string, string>> = {
-  pt: {
-    cereals_grains: 'Cereais & Grãos',
-    fruits_vegetables: 'Frutas e Legumes',
-    canned_goods: 'Enlatados',
-    meat_fish: 'Carnes e Peixes',
-    bakery: 'Padaria',
-    cooking_baking: 'Culinária e Confeitaria',
-    sweets_savory_snacks: 'Doces e Salgados',
-    dairy: 'Laticínios',
-    cleaning: 'Limpeza',
-    hygiene: 'Higiene',
-    beverages: 'Bebidas',
-    frozen: 'Congelados',
-    others: 'Outros',
-  },
-  en: {
-    cereals_grains: 'Cereals & Grains',
-    fruits_vegetables: 'Fruits & Vegetables',
-    canned_goods: 'Canned Goods',
-    meat_fish: 'Meat & Fish',
-    bakery: 'Bakery',
-    cooking_baking: 'Cooking & Baking',
-    sweets_savory_snacks: 'Sweets & Savory Snacks',
-    dairy: 'Dairy',
-    cleaning: 'Cleaning',
-    hygiene: 'Hygiene',
-    beverages: 'Beverages',
-    frozen: 'Frozen',
-    others: 'Others',
-  },
-};
-
-const UNIT_LABELS: Record<Language, Record<Unit, string>> = {
-  pt: {
-    un: 'un',
-    kg: 'kg',
-    l: 'l',
-    g: 'g',
-    ml: 'ml',
-    package: 'pacote',
-    box: 'caixa',
-  },
-  en: {
-    un: 'unit',
-    kg: 'kg',
-    l: 'l',
-    g: 'g',
-    ml: 'ml',
-    package: 'package',
-    box: 'box',
-  },
-};
-
+const toCategoryKey = (categoryId: string): TranslationKey => (`category.${categoryId}` as TranslationKey);
+const toUnitKey = (unit: Unit): TranslationKey => (`unit.${unit}` as TranslationKey);
 
 export const normalizeUnitId = (rawUnit: unknown): Unit => {
   const normalized = String(rawUnit || '').trim().toLowerCase();
@@ -82,10 +31,11 @@ export const normalizeUnitId = (rawUnit: unknown): Unit => {
 };
 
 export const getCategoryLabel = (categoryId: string, lang: Language) => {
-  return CATEGORY_LABELS[lang][categoryId] || CATEGORY_LABELS[lang].others;
+  const key = toCategoryKey(categoryId);
+  return translate(lang, key) || translate(lang, 'category.others');
 };
 
 export const getUnitLabel = (unit: unknown, lang: Language) => {
   const normalizedUnit = normalizeUnitId(unit);
-  return UNIT_LABELS[lang][normalizedUnit] || normalizedUnit;
+  return translate(lang, toUnitKey(normalizedUnit));
 };

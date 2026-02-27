@@ -43,4 +43,4 @@ export interface PantryData {
   items: Product[];
 }
 
-export type Language = 'pt' | 'en';
+export type { Language } from './i18n';

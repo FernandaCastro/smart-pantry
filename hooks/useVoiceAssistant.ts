@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TranslationKey } from '../i18n';
+import { SUPPORTED_LANGUAGES, TranslationKey, translate } from '../i18n';
 import { Language, User } from '../types';
 import { askVoiceAssistant } from '../services/voiceAssistant';
 
@@ -41,7 +41,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, loadPantryData, l
   const startVoiceSession = useCallback(async () => {
     if (!isConfigured || !currentUser) {
       setIsVoiceActive(true);
-      setVoiceLog(lang === 'en' ? 'Voice assistant is unavailable.' : 'Assistente de voz indisponível.');
+      setVoiceLog(translate(lang, 'voiceUnavailableShort'));
       return;
     }
 
@@ -54,32 +54,24 @@ export function useVoiceAssistant({ currentUser, isConfigured, loadPantryData, l
 
     if (!speechApi) {
       setIsVoiceActive(true);
-      setVoiceLog(
-        lang === 'en'
-          ? 'Voice recognition is not supported in this browser.'
-          : 'Reconhecimento de voz não é suportado neste navegador.',
-      );
+      setVoiceLog(translate(lang, 'voiceRecognitionUnsupported'));
       return;
     }
 
     const recognition = new speechApi();
     recognitionRef.current = recognition;
-    recognition.lang = lang === 'en' ? 'en-US' : 'pt-BR';
+    recognition.lang = SUPPORTED_LANGUAGES[lang].speechLocale;
     recognition.interimResults = false;
     recognition.continuous = false;
 
     setIsVoiceActive(true);
-    setVoiceLog(lang === 'en' ? 'Listening...' : 'Ouvindo...');
+    setVoiceLog(translate(lang, 'listening'));
 
     recognition.onresult = async (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim() || '';
 
       if (!transcript) {
-        setVoiceLog(
-          lang === 'en'
-            ? 'I could not understand. Please try again.'
-            : 'Não consegui entender. Tente novamente.',
-        );
+        setVoiceLog(translate(lang, 'voiceNotUnderstood'));
         return;
       }
 
@@ -93,11 +85,7 @@ export function useVoiceAssistant({ currentUser, isConfigured, loadPantryData, l
     };
 
     recognition.onerror = () => {
-      setVoiceLog(
-        lang === 'en'
-          ? 'Could not capture audio. Please try again.'
-          : 'Não foi possível capturar o áudio. Tente novamente.',
-      );
+      setVoiceLog(translate(lang, 'voiceCaptureFailed'));
     };
 
     recognition.onend = () => {

@@ -41,7 +41,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       <div className="absolute inset-0 bg-[color:color-mix(in_srgb,var(--sp-black)_30%,transparent)] backdrop-blur-sm" onClick={onClose}></div>
       <div className="relative w-full max-w-md bg-[color:color-mix(in_srgb,var(--sp-white)_95%,transparent)] backdrop-blur-xl rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl border border-[color:color-mix(in_srgb,var(--sp-white)_80%,transparent)]">
         <h2 className="text-2xl font-black text-[var(--sp-gray-900)] mb-2">{editingProductId ? t('editTitle') : t('addTitle')}</h2>
-        <p className="text-sm text-[var(--sp-slate-500)] mb-6">Preencha os detalhes para manter sua despensa organizada.</p>
+        <p className="text-sm text-[var(--sp-slate-500)] mb-6">{t('modalDescription')}</p>
         <div className="space-y-5">
           <div>
             <label className="block text-[10px] font-black text-[var(--sp-gray-400)] uppercase tracking-widest mb-2">{t('nameLabel')}</label>
