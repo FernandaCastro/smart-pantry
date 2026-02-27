@@ -10,6 +10,8 @@ const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'ai-suggestions';
 const MODEL = 'gemini-2.5-flash';
 
+const getResponseLanguageLabel = (lang: 'pt' | 'en') => (lang === 'pt' ? 'Portuguese (pt-BR)' : 'English (en-US)');
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -139,13 +141,17 @@ Deno.serve(async (request) => {
 
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
+    const responseLanguage = getResponseLanguageLabel(lang);
+
     const aiResponse = await ai.models.generateContent({
       model: MODEL,
-      contents: `Items: ${productsList}`,
+      contents: `Pantry items (name:quantity): ${productsList}`,
       config: {
-        systemInstruction: lang === 'en'
-          ? "Pantry assistant. Suggest 3 quick recipes/tips based on items. Concise, friendly, Markdown."
-          : "Assistente de despensa. Sugira 3 receitas/dicas rápidas. Conciso, amigável, Markdown.",
+        systemInstruction: `You are a pantry assistant. Generate exactly 3 concise recipe or pantry tips in Markdown.
+- Write the final answer in ${responseLanguage}.
+- Keep any product names exactly as provided by the user/input (do not translate, rename, or transliterate product names).
+- You may translate connective words around product names, but preserve product names verbatim.
+- Be practical, friendly, and direct.`,
         temperature: 0.7,
       },
     });
