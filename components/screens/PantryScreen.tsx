@@ -1,8 +1,9 @@
 import React from 'react';
 import { Minus, Pencil, Plus, Search, Trash2 } from 'lucide-react';
-import { CATEGORIES, getCategoryLabel, getUnitLabel } from '../../constants';
+import { getCategoryLabel, getUnitLabel } from '../../constants';
 import { TranslationKey } from '../../i18n';
 import { Language, Product } from '../../types';
+import { CategoryIcon } from '../CategoryIcon';
 
 interface PantryScreenProps {
   pantry: Product[];
@@ -41,7 +42,7 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
         {pantry.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(item => (
           <div key={item.id} className="bg-[var(--sp-white)] border border-[var(--sp-gray-100)] p-4 rounded-3xl shadow-sm">
             <div className="flex items-start gap-4">
-              <div className="text-3xl p-3 bg-[var(--sp-gray-50)] rounded-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</div>
+              <div className="p-3 bg-[var(--sp-gray-50)] rounded-2xl text-[var(--sp-violet-600)]"><CategoryIcon categoryId={item.category} size={20} /></div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-[var(--sp-gray-800)] text-left truncate">{item.name}</h4>
                 <p className="text-[10px] text-[var(--sp-gray-400)] uppercase font-bold tracking-widest text-left">{getCategoryLabel(item.category, lang)}</p>

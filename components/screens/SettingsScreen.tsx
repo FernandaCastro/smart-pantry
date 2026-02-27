@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, LogOut, User as UserIcon } from 'lucide-react';
+import { Database, ExternalLink, LogOut, User as UserIcon } from 'lucide-react';
 import { User } from '../../types';
 
 interface SettingsScreenProps {
@@ -37,6 +37,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ currentUser, onL
             <span className="text-[var(--sp-green-500)] font-bold">Pronto</span>
           </div>
         </div>
+      </div>
+
+      <div className="p-5 bg-[var(--sp-gray-50)] rounded-[2rem] border border-[var(--sp-gray-100)]">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--sp-gray-400)] mb-2">Referência de ícones</p>
+        <a
+          href="https://www.flaticon.com/free-icon/rice_9921058?term=cereals+and+grains&page=1&position=3&origin=search&related_id=9921058"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--sp-violet-600)] hover:text-[var(--sp-violet-700)]"
+        >
+          Estilo baseado em ícones gratuitos do Flaticon
+          <ExternalLink size={14} />
+        </a>
       </div>
     </div>
   );

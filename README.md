@@ -28,6 +28,12 @@ Implemented in this iteration:
 - `services/voiceAssistant.ts`: frontend calls only the `voice-assistant` Edge Function for voice AI responses.
 - UI refactor with reusable components in `components/` for easier maintenance.
 
+## Icon style reference
+
+Category icons follow a modern badge style inspired by free Flaticon assets.
+Reference example used for cereals & grains:
+- https://www.flaticon.com/free-icon/rice_9921058?term=cereals+and+grains&page=1&position=3&origin=search&related_id=9921058
+
 ## Frontend code organization
 
 To improve maintainability, parts of the monolithic UI were extracted into dedicated components:

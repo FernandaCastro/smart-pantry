@@ -51,7 +51,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <div>
               <label className="block text-[10px] font-black text-[var(--sp-gray-400)] uppercase tracking-widest mb-2">{t('catLabel')}</label>
               <select className="w-full p-4 bg-[var(--sp-gray-50)] rounded-2xl border-2 border-transparent focus:border-[var(--sp-violet-500)] outline-none" value={formData.category} onChange={e => onFormChange({ ...formData, category: e.target.value })}>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {getCategoryLabel(c.id, lang)}</option>)}
+                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{getCategoryLabel(c.id, lang)}</option>)}
               </select>
             </div>
             <div>
