@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, LogOut, User as UserIcon } from 'lucide-react';
+import { Database, ExternalLink, LogOut, User as UserIcon } from 'lucide-react';
 import { User } from '../../types';
 
 interface SettingsScreenProps {

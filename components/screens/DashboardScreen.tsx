@@ -1,8 +1,9 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, ChevronRight, Package, ShoppingBasket, Sparkles } from 'lucide-react';
-import { CATEGORIES, getUnitLabel } from '../../constants';
+import { getUnitLabel } from '../../constants';
 import { TranslationKey } from '../../i18n';
 import { Language, Product, ShoppingItem, ViewType } from '../../types';
+import { CategoryIcon } from '../CategoryIcon';
 
 interface DashboardScreenProps {
   pantry: Product[];
@@ -68,7 +69,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               shoppingList.map(item => (
                 <div key={item.id} className="flex items-center justify-between p-4 bg-[var(--sp-white)] border border-[var(--sp-gray-100)] rounded-2xl shadow-sm">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{CATEGORIES.find(c => c.id === item.category)?.icon || '📦'}</span>
+                    <span className="text-[var(--sp-violet-600)]"><CategoryIcon categoryId={item.category} size={18} /></span>
                     <div>
                       <p className="font-bold text-[var(--sp-gray-700)]">{item.name}</p>
                       <p className="text-[10px] text-[var(--sp-fuchsia-500)] font-bold uppercase">{t('stockAlertMsg')} {item.currentQuantity} {getUnitLabel(item.unit, lang)}</p>

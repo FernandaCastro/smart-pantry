@@ -2,13 +2,13 @@ import { TranslationKey, translate } from './i18n';
 import { Category, Language, Unit } from './types';
 
 export const CATEGORIES: Category[] = [
-  { id: 'cereals_grains', name: 'Cereais & Grãos', icon: '🌾' },
-  { id: 'fruits_vegetables', name: 'Frutas e Legumes', icon: '🥦' },
+  { id: 'cereals_grains', name: 'Cereais & Grãos', icon: '🌾🫘' },
+  { id: 'fruits_vegetables', name: 'Frutas e Legumes', icon: '🍎🥕' },
   { id: 'canned_goods', name: 'Enlatados', icon: '🥫' },
-  { id: 'meat_fish', name: 'Carnes e Peixes', icon: '🥩' },
+  { id: 'meat_fish', name: 'Carnes e Peixes', icon: '🥩🐟' },
   { id: 'bakery', name: 'Padaria', icon: '🥖' },
-  { id: 'cooking_baking', name: 'Culinária e Confeitaria', icon: '🧁' },
-  { id: 'sweets_savory_snacks', name: 'Doces e Salgados', icon: '🍫' },
+  { id: 'cooking_baking', name: 'Culinária e Confeitaria', icon: '🍳🧁' },
+  { id: 'sweets_savory_snacks', name: 'Doces e Salgados', icon: '🍫🥨' },
   { id: 'dairy', name: 'Laticínios', icon: '🥛' },
   { id: 'cleaning', name: 'Limpeza', icon: '🧼' },
   { id: 'hygiene', name: 'Higiene', icon: '🪥' },

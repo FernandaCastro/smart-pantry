@@ -18,7 +18,6 @@ export interface ShoppingItem extends Product {
 export interface ShoppingCategoryGroup {
   categoryId: string;
   categoryLabel: string;
-  categoryIcon: string;
   items: ShoppingItem[];
 }
 

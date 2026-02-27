@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronDown, Circle, Loader2, Minus, Plus } from 'lucide-react';
-import { CATEGORIES, getCategoryLabel, getUnitLabel } from '../../constants';
+import { getCategoryLabel, getUnitLabel } from '../../constants';
 import { SUPPORTED_LANGUAGES, TranslationKey } from '../../i18n';
 import { Language, Product, ShoppingItem } from '../../types';
+import { CategoryIcon } from '../CategoryIcon';
 
 interface ShoppingScreenProps {
   pantry: Product[];
@@ -50,11 +51,9 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
 
     return Object.entries(grouped)
       .map(([categoryId, items]) => {
-        const category = CATEGORIES.find(c => c.id === categoryId);
         return {
           categoryId,
           categoryLabel: getCategoryLabel(categoryId, lang),
-          categoryIcon: category?.icon || '📦',
           items: [...items].sort((a, b) => collator.compare(a.name, b.name))
         };
       })
@@ -83,7 +82,7 @@ export const ShoppingScreen: React.FC<ShoppingScreenProps> = ({
                 className="w-full flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 text-left">
-                  <span className="text-2xl">{group.categoryIcon}</span>
+                  <span className="text-[var(--sp-violet-600)]"><CategoryIcon categoryId={group.categoryId} size={20} /></span>
                   <div>
                     <p className="font-black text-[var(--sp-gray-900)]">{group.categoryLabel}</p>
                     <p className="text-[11px] font-bold text-[var(--sp-gray-400)] uppercase tracking-wider">{group.items.length} item(ns)</p>
