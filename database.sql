@@ -11,12 +11,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT UNIQUE NOT NULL,
   name TEXT,
   pantry_id TEXT NOT NULL,
-  password TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. Tabela de Itens da Despensa
 -- Armazena os produtos, quantidades e limites de estoque
+
+
+-- Segurança: senha não deve existir em tabela de domínio quando Supabase Auth é usado
+-- Remove coluna legada, se existir em ambientes antigos
+ALTER TABLE IF EXISTS public.profiles
+  DROP COLUMN IF EXISTS password;
+
 CREATE TABLE IF NOT EXISTS public.pantry_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   pantry_id TEXT NOT NULL,
