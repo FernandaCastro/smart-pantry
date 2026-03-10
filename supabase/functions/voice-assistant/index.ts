@@ -4,6 +4,8 @@ import { GoogleGenAI, Type } from 'npm:@google/genai';
 const DAILY_TOKEN_LIMIT = 12000;
 const FEATURE = 'voice-assistant';
 const MODEL = 'gemini-2.5-flash';
+const MAX_TRANSCRIPT_CHARS = 1200;
+const MAX_REQUEST_CHARS = 2000;
 
 const getResponseLanguageLabel = (lang: 'pt' | 'en') => (lang === 'pt' ? 'Portuguese (pt-BR)' : 'English (en-US)');
 
@@ -35,18 +37,40 @@ interface VoiceAction {
   message?: string;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const ALLOWED_ORIGINS = new Set(
+  String(Deno.env.get('ALLOWED_ORIGINS') || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean),
+);
+
+const buildCorsHeaders = (request: Request) => {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  };
+
+  const origin = request.headers.get('Origin');
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+
+  return headers;
 };
 
-const jsonResponse = (body: Record<string, unknown>, status: number) =>
+const isOriginAllowed = (request: Request) => {
+  const origin = request.headers.get('Origin');
+  if (!origin) return true;
+  return ALLOWED_ORIGINS.has(origin);
+};
+
+const jsonResponse = (request: Request, body: Record<string, unknown>, status: number) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      ...corsHeaders,
+      ...buildCorsHeaders(request),
     },
   });
 
@@ -92,11 +116,18 @@ const normalizeCategory = (category: string | undefined) => {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    if (!isOriginAllowed(request)) {
+      return jsonResponse(request, { error: 'Origin not allowed' }, 403);
+    }
+    return new Response('ok', { headers: buildCorsHeaders(request) });
+  }
+
+  if (!isOriginAllowed(request)) {
+    return jsonResponse(request, { error: 'Origin not allowed' }, 403);
   }
 
   if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return jsonResponse(request, { error: 'Method not allowed' }, 405);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -106,15 +137,15 @@ Deno.serve(async (request) => {
   const authorization = request.headers.get('Authorization') || '';
 
   if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-    return jsonResponse({ error: 'Supabase environment is not configured' }, 500);
+    return jsonResponse(request, { error: 'Supabase environment is not configured' }, 500);
   }
 
   if (!authorization) {
-    return jsonResponse({ error: 'Unauthorized' }, 401);
+    return jsonResponse(request, { error: 'Unauthorized' }, 401);
   }
 
   if (!geminiApiKey) {
-    return jsonResponse({ error: 'GEMINI_API_KEY is not configured' }, 500);
+    return jsonResponse(request, { error: 'GEMINI_API_KEY is not configured' }, 500);
   }
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -130,22 +161,38 @@ Deno.serve(async (request) => {
   try {
     const { data: authData, error: authError } = await userClient.auth.getUser();
     if (authError || !authData.user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
+      return jsonResponse(request, { error: 'Unauthorized' }, 401);
     }
 
     const userId = authData.user.id;
-    const { transcript, lang = 'pt' } = await request.json() as {
+    const payload = await request.json() as {
       transcript?: string;
       lang?: 'en' | 'pt';
     };
+    const transcript = String(payload.transcript || '').trim();
+    const lang = payload.lang === 'en' ? 'en' : 'pt';
 
-    if (!transcript || !transcript.trim()) {
-      return jsonResponse({
+    if (!transcript) {
+      return jsonResponse(request, {
         error: 'Voice transcript is empty',
       }, 400);
     }
 
+    if (transcript.length > MAX_TRANSCRIPT_CHARS) {
+      return jsonResponse(request, {
+        error: 'Payload too large: transcript exceeds allowed size',
+        max_transcript_chars: MAX_TRANSCRIPT_CHARS,
+      }, 413);
+    }
+
     const requestChars = JSON.stringify({ transcript, lang }).length;
+    if (requestChars > MAX_REQUEST_CHARS) {
+      return jsonResponse(request, {
+        error: 'Payload too large: request exceeds allowed size',
+        max_request_chars: MAX_REQUEST_CHARS,
+      }, 413);
+    }
+
     const estimatedRequestTokens = estimateTokensFromChars(requestChars);
     const last24Hours = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
 
@@ -158,7 +205,7 @@ Deno.serve(async (request) => {
 
     if (usageReadError) {
       console.error('Failed to read usage:', usageReadError);
-      return jsonResponse({ error: 'Failed to validate usage limits' }, 500);
+      return jsonResponse(request, { error: 'Failed to validate usage limits' }, 500);
     }
 
     const consumedTokens = (usageRows || []).reduce((sum, row) => {
@@ -172,7 +219,7 @@ Deno.serve(async (request) => {
 
     const remainingBeforeCall = DAILY_TOKEN_LIMIT - consumedTokens;
     if (remainingBeforeCall <= 0 || remainingBeforeCall < estimatedRequestTokens) {
-      return jsonResponse({
+      return jsonResponse(request, {
         error: 'Daily AI token limit reached. Please try again in 24 hours.',
         limit: DAILY_TOKEN_LIMIT,
         remaining_tokens: Math.max(0, remainingBeforeCall),
@@ -216,7 +263,7 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (profileError || !profile?.pantry_id) {
-      return jsonResponse({ error: 'Failed to resolve user pantry' }, 500);
+      return jsonResponse(request, { error: 'Failed to resolve user pantry' }, 500);
     }
 
     let responseText = parsedAction?.message || (lang === 'en' ? 'Voice command processed.' : 'Comando de voz processado.');
@@ -317,7 +364,7 @@ Deno.serve(async (request) => {
       console.error('Failed to log ai usage:', usageInsertError);
     }
 
-    return jsonResponse({
+    return jsonResponse(request, {
       text: responseText,
       action_applied: actionApplied,
       inferred_category: inferredCategory,
@@ -325,6 +372,6 @@ Deno.serve(async (request) => {
     }, 200);
   } catch (error) {
     console.error('voice-assistant error:', error);
-    return jsonResponse({ error: 'Failed to process voice request' }, 500);
+    return jsonResponse(request, { error: 'Failed to process voice request' }, 500);
   }
 });
