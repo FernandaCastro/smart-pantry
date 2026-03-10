@@ -57,6 +57,13 @@ Function path:
 Expected server secret in Supabase environment:
 - `GEMINI_API_KEY`
 - `ALLOWED_ORIGINS` (comma-separated list of trusted frontend origins, e.g. `https://app.example.com,https://staging.example.com`)
+- `AI_USER_DAILY_TOKEN_LIMIT` (optional default per-user token limit in rolling 24h for AI functions)
+- `AI_USER_DAILY_TOKEN_LIMIT_AI_SUGGESTIONS` (optional override for `ai-suggestions`)
+- `AI_USER_DAILY_TOKEN_LIMIT_VOICE_ASSISTANT` (optional override for `voice-assistant`)
+- `AI_PROJECT_KILL_SWITCH` (`true`/`false`; when `true`, blocks all AI requests globally)
+- `AI_PROJECT_DAILY_TOKEN_LIMIT` (optional global token budget in rolling 24h)
+- `AI_IP_RATE_LIMIT_WINDOW_SECONDS` (optional, default `60`)
+- `AI_IP_RATE_LIMIT_MAX_REQUESTS` (optional, default `30`)
 
 Suggested deployment command (Supabase CLI):
 - `supabase functions deploy ai-suggestions`
@@ -68,8 +75,9 @@ Suggested deployment command (Supabase CLI):
 
 - The frontend calls AI **only** through Supabase Edge Function `ai-suggestions`; there is no direct Gemini call or AI API key in client code.
 - Set `GEMINI_API_KEY` as a Supabase Function Secret (for example: `supabase secrets set GEMINI_API_KEY=...`).
-- Current MVP limit: **12,000 tokens per user in a rolling 24h window** for `ai-suggestions`.
-- To adjust the limit, edit `DAILY_TOKEN_LIMIT` in `supabase/functions/ai-suggestions/index.ts` and redeploy the function.
+- Current MVP limit: **12,000 tokens per user in a rolling 24h window** for `ai-suggestions` and `voice-assistant`.
+- Global governance is also available via env vars: project kill-switch, project daily token budget, and per-IP rate limiting.
+- To adjust per-user limits, configure Supabase Function Secrets (`AI_USER_DAILY_TOKEN_LIMIT` and optional per-feature overrides) and redeploy.
 
 
 ## Voice AI token governance

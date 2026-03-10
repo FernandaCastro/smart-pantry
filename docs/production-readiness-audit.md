@@ -36,8 +36,8 @@ Há pelo menos **2 riscos críticos** que precisam ser corrigidos antes do go-li
 
 ## Riscos médios / melhorias importantes
 
-1. **Governança de custo incompleta no nível global**
-   - Existe cota por usuário/feature, porém sem kill-switch global por projeto e sem rate limiting por IP.
+1. **Governança de custo no nível global (status: mitigado)**
+   - Foi adicionado kill-switch global por projeto, limite diário global opcional e rate limiting por IP nas funções de IA.
 
 2. **Observabilidade e resposta a incidentes**
    - Faltam indicadores/alertas explícitos para picos de consumo, erros de função e padrões de abuso.
@@ -81,7 +81,7 @@ Há pelo menos **2 riscos críticos** que precisam ser corrigidos antes do go-li
 - [x] Sem coluna `password` em tabelas de domínio.
 - [x] RLS validado por testes de acesso entre usuários.
 - [x] CORS restrito por ambiente (dev/stage/prod).
-- [ ] Limites de payload + rate limiting ativos.
+- [x] Limites de payload + rate limiting ativos.
 - [ ] Alertas de custo/erro configurados.
 - [ ] Backup, política de retenção e plano de rollback documentados.
 
