@@ -6,12 +6,18 @@ interface PantryItemInput {
   currentQuantity: number;
 }
 
-const DAILY_TOKEN_LIMIT = 12000;
+const DAILY_TOKEN_LIMIT = Number(Deno.env.get('AI_USER_DAILY_TOKEN_LIMIT_AI_SUGGESTIONS') || Deno.env.get('AI_USER_DAILY_TOKEN_LIMIT') || 12000);
 const FEATURE = 'ai-suggestions';
 const MODEL = 'gemini-2.5-flash';
 const MAX_PANTRY_ITEMS = 150;
 const MAX_ITEM_NAME_LENGTH = 120;
 const MAX_REQUEST_CHARS = 12000;
+const PROJECT_KILL_SWITCH_ENABLED = String(Deno.env.get('AI_PROJECT_KILL_SWITCH') || 'false').toLowerCase() === 'true';
+const PROJECT_DAILY_TOKEN_LIMIT = Number(Deno.env.get('AI_PROJECT_DAILY_TOKEN_LIMIT') || 0);
+const IP_RATE_LIMIT_WINDOW_SECONDS = Number(Deno.env.get('AI_IP_RATE_LIMIT_WINDOW_SECONDS') || 60);
+const IP_RATE_LIMIT_MAX_REQUESTS = Number(Deno.env.get('AI_IP_RATE_LIMIT_MAX_REQUESTS') || 30);
+
+const isValidPositiveLimit = (value: number) => Number.isFinite(value) && value > 0;
 
 const getResponseLanguageLabel = (lang: 'pt' | 'en') => (lang === 'pt' ? 'Portuguese (pt-BR)' : 'English (en-US)');
 
@@ -83,6 +89,12 @@ const estimateTokensFromChars = (requestChars: number, responseChars = 0) => {
   return Math.max(1, Math.ceil(safeChars / 4));
 };
 
+const getClientIp = (request: Request) => {
+  const forwardedFor = request.headers.get('x-forwarded-for') || request.headers.get('X-Forwarded-For') || '';
+  const realIp = request.headers.get('x-real-ip') || request.headers.get('X-Real-IP') || '';
+  return (forwardedFor.split(',')[0] || realIp || 'unknown').trim() || 'unknown';
+};
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     if (!isOriginAllowed(request)) {
@@ -128,6 +140,47 @@ Deno.serve(async (request) => {
   const usageClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
   try {
+    if (!isValidPositiveLimit(DAILY_TOKEN_LIMIT)) {
+      console.error('Invalid DAILY_TOKEN_LIMIT configuration');
+      return jsonResponse(request, { error: 'Invalid AI quota configuration' }, 500);
+    }
+    const clientIp = getClientIp(request);
+    const ipRateLimitWindowStart = new Date(Date.now() - ((isValidPositiveLimit(IP_RATE_LIMIT_WINDOW_SECONDS) ? IP_RATE_LIMIT_WINDOW_SECONDS : 60) * 1000)).toISOString();
+
+    const { count: ipRequestCount, error: ipRateLimitError } = await usageClient
+      .from('ai_ip_rate_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', clientIp)
+      .gte('created_at', ipRateLimitWindowStart);
+
+    if (ipRateLimitError) {
+      console.error('Failed to read IP rate limit usage:', ipRateLimitError);
+      return jsonResponse(request, { error: 'Failed to validate rate limits' }, 500);
+    }
+
+    if ((ipRequestCount || 0) >= (isValidPositiveLimit(IP_RATE_LIMIT_MAX_REQUESTS) ? IP_RATE_LIMIT_MAX_REQUESTS : 30)) {
+      return jsonResponse(request, {
+        error: 'Too many requests. Please try again shortly.',
+        rate_limit_window_seconds: isValidPositiveLimit(IP_RATE_LIMIT_WINDOW_SECONDS) ? IP_RATE_LIMIT_WINDOW_SECONDS : 60,
+        rate_limit_max_requests: isValidPositiveLimit(IP_RATE_LIMIT_MAX_REQUESTS) ? IP_RATE_LIMIT_MAX_REQUESTS : 30,
+      }, 429);
+    }
+
+    const { error: ipRateInsertError } = await usageClient
+      .from('ai_ip_rate_events')
+      .insert({ ip_address: clientIp, feature: FEATURE });
+
+    if (ipRateInsertError) {
+      console.error('Failed to write IP rate event:', ipRateInsertError);
+      return jsonResponse(request, { error: 'Failed to validate rate limits' }, 500);
+    }
+
+    if (PROJECT_KILL_SWITCH_ENABLED) {
+      return jsonResponse(request, {
+        error: 'AI requests are temporarily disabled by project administrator.',
+      }, 503);
+    }
+
     const { data: authData, error: authError } = await userClient.auth.getUser();
     if (authError || !authData.user) {
       return jsonResponse(request, { error: 'Unauthorized' }, 401);
@@ -182,6 +235,36 @@ Deno.serve(async (request) => {
 
     const estimatedRequestTokens = estimateTokensFromChars(requestChars);
     const last24Hours = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
+
+    if (Number.isFinite(PROJECT_DAILY_TOKEN_LIMIT) && PROJECT_DAILY_TOKEN_LIMIT > 0) {
+      const { data: projectUsageRows, error: projectUsageError } = await usageClient
+        .from('ai_usage')
+        .select('total_tokens,request_chars,response_chars')
+        .gte('created_at', last24Hours);
+
+      if (projectUsageError) {
+        console.error('Failed to read project usage:', projectUsageError);
+        return jsonResponse(request, { error: 'Failed to validate usage limits' }, 500);
+      }
+
+      const projectConsumedTokens = (projectUsageRows || []).reduce((sum, row) => {
+        const persistedTotal = Number(row.total_tokens || 0);
+        if (Number.isFinite(persistedTotal) && persistedTotal > 0) {
+          return sum + persistedTotal;
+        }
+
+        return sum + estimateTokensFromChars(Number(row.request_chars || 0), Number(row.response_chars || 0));
+      }, 0);
+
+      const remainingProjectTokens = PROJECT_DAILY_TOKEN_LIMIT - projectConsumedTokens;
+      if (remainingProjectTokens <= 0 || remainingProjectTokens < estimatedRequestTokens) {
+        return jsonResponse(request, {
+          error: 'Project AI daily budget reached. Please try again later.',
+          project_daily_limit: PROJECT_DAILY_TOKEN_LIMIT,
+          remaining_project_tokens: Math.max(0, remainingProjectTokens),
+        }, 429);
+      }
+    }
 
     const { data: usageRows, error: usageReadError } = await usageClient
       .from('ai_usage')
