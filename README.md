@@ -56,6 +56,7 @@ Function path:
 
 Expected server secret in Supabase environment:
 - `GEMINI_API_KEY`
+- `ALLOWED_ORIGINS` (comma-separated list of trusted frontend origins, e.g. `https://app.example.com,https://staging.example.com`)
 
 Suggested deployment command (Supabase CLI):
 - `supabase functions deploy ai-suggestions`
