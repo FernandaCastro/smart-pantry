@@ -77,10 +77,10 @@ Há pelo menos **2 riscos críticos** que precisam ser corrigidos antes do go-li
 
 ## Checklist mínimo de Go-Live
 
-- [ ] Sem políticas `ALLOW ALL` em produção.
-- [ ] Sem coluna `password` em tabelas de domínio.
-- [ ] RLS validado por testes de acesso entre usuários.
-- [ ] CORS restrito por ambiente (dev/stage/prod).
+- [x] Sem políticas `ALLOW ALL` em produção.
+- [x] Sem coluna `password` em tabelas de domínio.
+- [x] RLS validado por testes de acesso entre usuários.
+- [x] CORS restrito por ambiente (dev/stage/prod).
 - [ ] Limites de payload + rate limiting ativos.
 - [ ] Alertas de custo/erro configurados.
 - [ ] Backup, política de retenção e plano de rollback documentados.

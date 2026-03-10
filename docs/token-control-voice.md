@@ -78,8 +78,8 @@ Tune after 1–2 weeks by observing:
 
 ## Implementation checklist
 
-- [ ] Add migration for token columns in `ai_usage`.
-- [ ] Update Edge Functions to validate token limits (not only request counts).
+- [x] Add migration for token columns in `ai_usage`.
+- [x] Update Edge Functions to validate token limits (not only request counts).
 - [ ] Persist provider `usageMetadata`.
 - [ ] Return remaining quota feedback to the app.
 - [ ] Add daily global cost alerts.
